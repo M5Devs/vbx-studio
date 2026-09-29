@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VBX Studio - Visual Basic X IDE</title>
+  <link rel="stylesheet" href="style.css">
+  <!-- CodeMirror CSS & JS from CDN -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Top Header & Toolbar -->
+    <header class="top-header">
+      <div class="app-title-bar">
+        <div class="logo">
+          <span class="logo-vbx">VBX</span>
+          <span class="logo-studio">STUDIO</span>
+        </div>
+        <nav class="menu-bar">
+          <div class="menu-item" id="menu-file">File</div>
+          <div class="menu-item" id="menu-edit">Edit</div>
+          <div class="menu-item" id="menu-project">Project</div>
+          <div class="menu-item" id="menu-help">Help</div>
+        </nav>
+      </div>
+
+      <div class="action-toolbar">
+        <button id="btn-run" class="btn btn-run" title="Run Code (F5)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+          <span>Run</span>
+        </button>
+        <button id="btn-stop" class="btn btn-stop" title="Stop Execution" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M6 6h12v12H6z"/>
+          </svg>
+          <span>Stop</span>
+        </button>
+        <div class="toolbar-separator"></div>
+        <button id="btn-save" class="btn btn-save" title="Save File (Ctrl+S)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
+          </svg>
+          <span>Save</span>
+        </button>
+        <span class="file-path-indicator" id="current-filename">main.vbx</span>
+      </div>
+    </header>
+
+    <!-- Main 3-Pane Body -->
+    <main class="ide-body">
+      <!-- Left Pane: Toolbox Panel -->
+      <aside class="panel pane-left">
+        <div class="panel-header">
+          <span class="panel-title">Toolbox</span>
+        </div>
+        <div class="toolbox-grid">
+          <div class="toolbox-item active" title="Pointer (Select)">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 3l7 18 3-7 7-3L3 3z"/>
+            </svg>
+            <span class="toolbox-label">Pointer</span>
+          </div>
+          <div class="toolbox-item" title="CommandButton">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="6" width="18" height="12" rx="2"/>
+              <path d="M8 12h8"/>
+            </svg>
+            <span class="toolbox-label">Button</span>
+          </div>
+          <div class="toolbox-item" title="TextBox">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="6" width="18" height="12" rx="1"/>
+              <line x1="7" y1="12" x2="11" y2="12"/>
+            </svg>
+            <span class="toolbox-label">TextBox</span>
+          </div>
+          <div class="toolbox-item" title="Label">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 7h16M12 7v10"/>
+            </svg>
+            <span class="toolbox-label">Label</span>
+          </div>
+          <div class="toolbox-item" title="CheckBox">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="4" y="4" width="16" height="16" rx="2"/>
+              <path d="M9 12l2 2 4-4"/>
+            </svg>
+            <span class="toolbox-label">CheckBox</span>
+          </div>
+          <div class="toolbox-item" title="Frame">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" stroke-dasharray="2 2"/>
+            </svg>
+            <span class="toolbox-label">Frame</span>
+          </div>
+          <div class="toolbox-item" title="Image Control">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <span class="toolbox-label">Image</span>
+          </div>
+          <div class="toolbox-item" title="Timer Control">
+            <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="9"/>
+              <polyline points="12 6 12 12 16 14"/>
+            </svg>
+            <span class="toolbox-label">Timer</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Center Pane: Workspace (Code & Design View) -->
+      <section class="panel pane-center">
+        <div class="workspace-tabs">
+          <button class="tab-button active" id="tab-code">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="16 18 22 12 16 6"/>
+              <polyline points="8 6 2 12 8 18"/>
+            </svg>
+            <span>Code View</span>
+          </button>
+          <button class="tab-button" id="tab-design">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <path d="M3 9h18"/>
+              <path d="M9 21V9"/>
+            </svg>
+            <span>Design View</span>
+          </button>
+        </div>
+
+        <div class="view-container">
+          <div id="view-code" class="workspace-view active">
+            <textarea id="code-editor"></textarea>
+          </div>
+          <div id="view-design" class="workspace-view">
+            <div class="design-placeholder">
+              <div class="designer-form-mockup">
+                <div class="form-titlebar">Form1 (Visual Designer - Phase 2)</div>
+                <div class="form-body">
+                  <div class="mock-control mock-label">Label1</div>
+                  <button class="mock-control mock-btn">Command1</button>
+                  <input type="text" class="mock-control mock-input" value="Text1" readonly>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Right Pane: Properties Panel -->
+      <aside class="panel pane-right">
+        <div class="panel-header">
+          <span class="panel-title">Properties - Form1</span>
+        </div>
+        <div class="properties-container">
+          <table class="properties-table">
+            <thead>
+              <tr>
+                <th>Property</th>
+                <th>Value</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="prop-key">(Name)</td>
+                <td class="prop-val">Form1</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Caption</td>
+                <td class="prop-val">VBX Studio Shell</td>
+              </tr>
+              <tr>
+                <td class="prop-key">BackColor</td>
+                <td class="prop-val"><span class="color-swatch" style="background: #0b0f19;"></span>#0B0F19</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Width</td>
+                <td class="prop-val">8000</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Height</td>
+                <td class="prop-val">6000</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Top</td>
+                <td class="prop-val">0</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Left</td>
+                <td class="prop-val">0</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Visible</td>
+                <td class="prop-val">True</td>
+              </tr>
+              <tr>
+                <td class="prop-key">BorderStyle</td>
+                <td class="prop-val">2 - Sizable</td>
+              </tr>
+              <tr>
+                <td class="prop-key">Font</td>
+                <td class="prop-val">Segoe UI, 9pt</td>
+              </tr>
+              <tr>
+                <td class="prop-key">StartupPosition</td>
+                <td class="prop-val">2 - CenterScreen</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </aside>
+    </main>
+
+    <!-- Bottom Panel: Console / Output Log -->
+    <footer class="panel pane-bottom">
+      <div class="console-header">
+        <span class="panel-title">Output Log / Console</span>
+        <button id="btn-clear-console" class="btn-text">Clear</button>
+      </div>
+      <div id="console-output" class="console-output">
+        <div class="console-line line-system">[VBX Studio] Engine Ready. Click "▶ Run" or press F5 to execute code.</div>
+      </div>
+    </footer>
+  </div>
+
+  <!-- CodeMirror JavaScript -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/mode/vb/vb.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
