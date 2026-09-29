@@ -254,11 +254,13 @@ body, html {
   width: 20px;
   height: 20px;
   margin-bottom: 6px;
+  pointer-events: none;
 }
 
 .toolbox-label {
   font-size: 10px;
   font-weight: 500;
+  pointer-events: none;
 }
 
 /* Center Pane: Workspace */
@@ -341,79 +343,226 @@ body, html {
   color: #4a5568 !important;
 }
 
-/* Design View Mockup */
-.design-placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
+/* Visual Form Designer Canvas */
+.design-canvas-container {
+  width: 100%;
   height: 100%;
-  background: radial-gradient(circle, rgba(18, 24, 38, 0.8) 0%, rgba(11, 15, 25, 1) 100%);
-  padding: 20px;
+  position: relative;
+  overflow: auto;
+  background-color: #080b12;
+  background-image: radial-gradient(rgba(0, 229, 255, 0.2) 1px, transparent 1px);
+  background-size: 12px 12px;
+  padding: 30px;
 }
 
-.designer-form-mockup {
-  width: 380px;
-  height: 260px;
+.designer-form {
+  position: absolute;
   background-color: #121826;
   border: 1px solid var(--accent-purple);
-  border-radius: 6px;
-  box-shadow: 0 0 20px rgba(179, 136, 255, 0.2);
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
   display: flex;
   flex-direction: column;
+  outline: none;
+  user-select: none;
+  z-index: 1;
+}
+
+.designer-form.selected {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px rgba(0, 229, 255, 0.35);
 }
 
 .form-titlebar {
   background-color: #1e273d;
-  padding: 8px 12px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   font-size: 11px;
   font-weight: bold;
   color: var(--accent-purple);
   border-bottom: 1px solid var(--border-color);
-  border-top-left-radius: 5px;
-  border-top-right-radius: 5px;
+  cursor: move;
+  border-top-left-radius: 3px;
+  border-top-right-radius: 3px;
+}
+
+.form-title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.form-control-box {
+  display: flex;
+  gap: 6px;
+}
+
+.control-box-btn {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+
+.control-box-btn:hover {
+  color: var(--text-bright);
+  background-color: var(--bg-hover);
 }
 
 .form-body {
   flex: 1;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
+  position: relative;
+  overflow: hidden;
   background-image: radial-gradient(#232d42 1px, transparent 1px);
-  background-size: 12px 12px;
+  background-size: 8px 8px;
 }
 
-.mock-control {
+/* Handles for Form and Controls */
+.form-handles-container {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.designer-form.selected > .form-handles-container {
+  display: block;
+}
+
+.resize-handle {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  background-color: var(--accent-cyan);
+  border: 1px solid #000;
+  box-sizing: border-box;
+  z-index: 100;
+  pointer-events: auto;
+}
+
+.handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
+.handle-n  { top: -4px; left: calc(50% - 3.5px); cursor: ns-resize; }
+.handle-ne { top: -4px; right: -4px; cursor: nesw-resize; }
+.handle-e  { top: calc(50% - 3.5px); right: -4px; cursor: ew-resize; }
+.handle-se { bottom: -4px; right: -4px; cursor: nwse-resize; }
+.handle-s  { bottom: -4px; left: calc(50% - 3.5px); cursor: ns-resize; }
+.handle-sw { bottom: -4px; left: -4px; cursor: nesw-resize; }
+.handle-w  { top: calc(50% - 3.5px); left: -4px; cursor: ew-resize; }
+
+/* Placed Control Base Styling */
+.designer-control {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: move;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 12px;
-  padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 3px;
+  z-index: 2;
 }
 
-.mock-label {
-  color: var(--text-main);
-  background: transparent;
-  padding: 0;
+.designer-control.selected {
+  outline: 1px dashed var(--accent-cyan);
 }
 
-.mock-btn {
+.designer-control.disabled {
+  opacity: 0.4;
+  pointer-events: auto;
+}
+
+.designer-control.hidden-control {
+  opacity: 0.3;
+  outline: 1px dotted var(--text-muted);
+}
+
+/* Specific Control Types */
+.control-type-button {
   background-color: rgba(0, 229, 255, 0.1);
   color: var(--accent-cyan);
   border: 1px solid var(--accent-cyan);
-  width: 110px;
-  cursor: pointer;
+  font-weight: 500;
 }
 
-.mock-input {
+.control-type-textbox {
   background-color: var(--bg-dark);
+  color: var(--text-main);
   border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  width: 200px;
+  justify-content: flex-start;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+}
+
+.control-type-label {
+  background: transparent;
+  color: var(--text-main);
+  border: 1px dashed transparent;
+  justify-content: flex-start;
+}
+
+.control-type-checkbox {
+  background: transparent;
+  color: var(--text-main);
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.control-type-checkbox-box {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--accent-cyan);
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: var(--accent-cyan);
+}
+
+.control-type-frame {
+  background-color: rgba(18, 24, 38, 0.5);
+  border: 1px solid var(--border-color);
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding: 4px;
+}
+
+.control-type-frame-caption {
+  font-size: 10px;
+  color: var(--accent-purple);
+  background-color: var(--bg-panel);
+  padding: 0 4px;
+  position: absolute;
+  top: -8px;
+  left: 8px;
+}
+
+.control-type-image {
+  background-color: var(--bg-dark);
+  border: 1px dashed var(--accent-purple);
+  color: var(--accent-purple);
+  gap: 4px;
+}
+
+.control-type-timer {
+  background-color: rgba(179, 136, 255, 0.1);
+  border: 1px solid var(--accent-purple);
+  color: var(--accent-purple);
 }
 
 /* Right Pane: Properties Panel */
 .pane-right {
   width: 220px;
   background-color: var(--bg-panel);
+  border-left: 1px solid var(--border-color);
 }
 
 .properties-container {
@@ -437,29 +586,55 @@ body, html {
 }
 
 .properties-table td {
-  padding: 6px 10px;
+  padding: 4px 8px;
   border-bottom: 1px solid var(--border-color);
   font-size: 11px;
+  vertical-align: middle;
 }
 
 .prop-key {
   color: var(--text-muted);
-  width: 45%;
+  width: 40%;
+  font-size: 11px;
 }
 
 .prop-val {
   color: var(--text-bright);
   font-family: var(--font-mono);
+  width: 60%;
 }
 
-.color-swatch {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  margin-right: 6px;
+.prop-input {
+  width: 100%;
+  background: var(--bg-dark);
   border: 1px solid var(--border-color);
-  vertical-align: middle;
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 5px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.prop-input:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 5px rgba(0, 229, 255, 0.3);
+}
+
+.prop-select {
+  width: 100%;
+  background: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  color: var(--accent-cyan);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  padding: 3px 3px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.prop-select:focus {
+  border-color: var(--accent-cyan);
 }
 
 /* Bottom Panel: Output / Console */
