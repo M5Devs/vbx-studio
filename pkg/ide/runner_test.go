@@ -127,3 +127,72 @@ func TestServer_SaveAndOpen(t *testing.T) {
 		t.Errorf("expected file content to contain 'Test Save', got %s", openW.Body.String())
 	}
 }
+
+func TestServer_ProjectSaveAndOpen(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "vbx_project_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	server := NewServer(tempDir)
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+
+	testFilePath := filepath.Join(tempDir, "Project1.vbxp")
+	projectJSON := `{
+		"version": "1.0",
+		"projectName": "Project1",
+		"form": {
+			"name": "Form1",
+			"caption": "Form1",
+			"width": 600,
+			"height": 400,
+			"backColor": "#0b0f19"
+		},
+		"controls": [
+			{
+				"id": "Button1",
+				"type": "Button",
+				"caption": "Button1",
+				"left": 48,
+				"top": 48,
+				"width": 100,
+				"height": 32,
+				"visible": true,
+				"enabled": true
+			}
+		],
+		"code": "Print \"Hello World\"\n"
+	}`
+
+	savePayload := `{"filePath":"` + strings.ReplaceAll(testFilePath, "\\", "\\\\") + `", "project":` + projectJSON + `}`
+
+	req := httptest.NewRequest(http.MethodPost, "/api/project/save", strings.NewReader(savePayload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 on project save, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Test Open
+	openReq := httptest.NewRequest(http.MethodGet, "/api/project/open?filePath="+testFilePath, nil)
+	openW := httptest.NewRecorder()
+
+	mux.ServeHTTP(openW, openReq)
+
+	if openW.Code != http.StatusOK {
+		t.Fatalf("expected status 200 on project open, got %d: %s", openW.Code, openW.Body.String())
+	}
+
+	bodyStr := openW.Body.String()
+	if !strings.Contains(bodyStr, "Hello World") {
+		t.Errorf("expected project code to contain 'Hello World', got %s", bodyStr)
+	}
+	if !strings.Contains(bodyStr, "Button1") {
+		t.Errorf("expected project controls to contain 'Button1', got %s", bodyStr)
+	}
+}

@@ -150,27 +150,168 @@ MsgBox "Hello from VBX Studio!"`;
     }
   });
 
-  // Handle Save
-  btnSave.addEventListener("click", async () => {
-    const code = editor.getValue();
-    const filePath = currentFilename.textContent || "main.vbx";
+  const btnOpen = document.getElementById("btn-open");
+  const projectFileInput = document.getElementById("project-file-input");
+  const menuFile = document.getElementById("menu-file");
 
+  // Save Project (.vbxp)
+  async function saveProject() {
+    const code = editor.getValue();
+    const projectName = state.form.name || "Project1";
+    const fileName = `${projectName}.vbxp`;
+
+    const projectData = {
+      version: "1.0",
+      projectName: projectName,
+      form: {
+        name: state.form.name || "Form1",
+        caption: state.form.caption || state.form.name || "Form1",
+        width: state.form.width || 600,
+        height: state.form.height || 400,
+        backColor: state.form.backColor || "#0b0f19"
+      },
+      controls: state.controls.map((c) => ({
+        id: c.id,
+        type: c.type,
+        caption: c.caption !== undefined ? c.caption : c.name,
+        left: c.left,
+        top: c.top,
+        width: c.width,
+        height: c.height,
+        visible: c.visible !== undefined ? c.visible : true,
+        enabled: c.enabled !== undefined ? c.enabled : true
+      })),
+      code: code
+    };
+
+    // Download file in browser
+    const jsonStr = JSON.stringify(projectData, null, 2);
+    const blob = new Blob([jsonStr], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    // Also call backend API to save project cleanly
     try {
-      const response = await fetch("/api/save", {
+      const response = await fetch("/api/project/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filePath, code })
+        body: JSON.stringify({ filePath: fileName, project: projectData })
       });
 
       if (response.ok) {
-        appendConsoleLine(`[VBX Studio] Saved successfully to ${filePath}`, "system");
+        appendConsoleLine(`[VBX Studio] Project saved successfully to ${fileName}`, "system");
       } else {
-        appendConsoleLine(`[Error] Save failed`, "stderr");
+        appendConsoleLine(`[Error] Backend project save returned error status`, "stderr");
       }
     } catch (err) {
-      appendConsoleLine(`[Error] Save request failed: ${err.message}`, "stderr");
+      appendConsoleLine(`[Error] Project save request failed: ${err.message}`, "stderr");
     }
+
+    currentFilename.textContent = fileName;
+  }
+
+  // Load / Open Project (.vbxp)
+  function loadProject(project, fileName) {
+    if (!project) return;
+
+    if (project.form) {
+      state.form.name = project.form.name || "Form1";
+      state.form.caption = project.form.caption || project.form.name || "Form1";
+      state.form.width = project.form.width || 600;
+      state.form.height = project.form.height || 400;
+      state.form.backColor = project.form.backColor || "#0b0f19";
+    }
+
+    if (Array.isArray(project.controls)) {
+      state.controls = project.controls.map((c) => ({
+        id: c.id || c.name,
+        type: c.type || "Button",
+        name: c.id || c.name,
+        caption: c.caption !== undefined ? c.caption : (c.text !== undefined ? c.text : c.id),
+        text: c.text !== undefined ? c.text : c.caption,
+        left: c.left || 0,
+        top: c.top || 0,
+        width: c.width || 100,
+        height: c.height || 32,
+        visible: c.visible !== undefined ? c.visible : true,
+        enabled: c.enabled !== undefined ? c.enabled : true
+      }));
+
+      // Update control indices so newly created controls don't conflict
+      const indices = { Button: 1, TextBox: 1, Label: 1, CheckBox: 1, Frame: 1, Image: 1, Timer: 1 };
+      state.controls.forEach((c) => {
+        const match = c.id && c.id.match(/^([A-Za-z]+)(\d+)$/);
+        if (match) {
+          const type = match[1];
+          const num = parseInt(match[2], 10);
+          if (indices[type] !== undefined && num >= indices[type]) {
+            indices[type] = num + 1;
+          }
+        }
+      });
+      state.nextControlIndices = indices;
+    } else {
+      state.controls = [];
+    }
+
+    if (project.code !== undefined) {
+      editor.setValue(project.code);
+    }
+
+    state.selectedId = "Form1";
+    const displayFile = fileName || (project.projectName ? `${project.projectName}.vbxp` : "project.vbxp");
+    currentFilename.textContent = displayFile;
+
+    // Switch to Design View to immediately show restored visual form
+    tabDesign.click();
+    renderDesigner();
+
+    appendConsoleLine(`[VBX Studio] Loaded project: ${displayFile}`, "system");
+  }
+
+  // Event Listeners for Save and Open
+  btnSave.addEventListener("click", () => {
+    saveProject();
   });
+
+  if (btnOpen) {
+    btnOpen.addEventListener("click", () => {
+      projectFileInput.click();
+    });
+  }
+
+  if (projectFileInput) {
+    projectFileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const projectData = JSON.parse(event.target.result);
+          loadProject(projectData, file.name);
+        } catch (err) {
+          appendConsoleLine(`[Error] Failed to parse .vbxp project file: ${err.message}`, "stderr");
+        }
+        // Reset file input value so selecting the same file triggers change again
+        e.target.value = "";
+      };
+      reader.readAsText(file);
+    });
+  }
+
+  if (menuFile) {
+    menuFile.addEventListener("click", () => {
+      // Trigger file selection on File menu click or present options
+      projectFileInput.click();
+    });
+  }
 
   // Handle Clear Console
   btnClearConsole.addEventListener("click", () => {

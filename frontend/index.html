@@ -40,7 +40,14 @@
           <span>Stop</span>
         </button>
         <div class="toolbar-separator"></div>
-        <button id="btn-save" class="btn btn-save" title="Save File (Ctrl+S)">
+        <button id="btn-open" class="btn btn-open" title="Open Project (.vbxp)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/>
+          </svg>
+          <span>Open</span>
+        </button>
+        <input type="file" id="project-file-input" accept=".vbxp,.json" style="display:none">
+        <button id="btn-save" class="btn btn-save" title="Save Project (.vbxp)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
           </svg>
