@@ -9,6 +9,36 @@ import (
 	"time"
 )
 
+
+type FormConfig struct {
+	Name      string `json:"name"`
+	Caption   string `json:"caption"`
+	Width     int    `json:"width"`
+	Height    int    `json:"height"`
+	BackColor string `json:"backColor,omitempty"`
+}
+
+type ControlConfig struct {
+	ID      string `json:"id"`
+	Type    string `json:"type"`
+	Caption string `json:"caption,omitempty"`
+	Text    string `json:"text,omitempty"`
+	Left    int    `json:"left"`
+	Top     int    `json:"top"`
+	Width   int    `json:"width"`
+	Height  int    `json:"height"`
+	Visible bool   `json:"visible"`
+	Enabled bool   `json:"enabled"`
+}
+
+type ProjectConfig struct {
+	Version     string          `json:"version"`
+	ProjectName string          `json:"projectName"`
+	Form        FormConfig      `json:"form"`
+	Controls    []ControlConfig `json:"controls"`
+	Code        string          `json:"code"`
+}
+
 type Server struct {
 	runner         *Runner
 	staticDir      string
@@ -29,6 +59,9 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/stop", s.handleStop)
 	mux.HandleFunc("/api/save", s.handleSave)
 	mux.HandleFunc("/api/open", s.handleOpen)
+	mux.HandleFunc("/api/project/save", s.handleProjectSave)
+	mux.HandleFunc("/api/project/open", s.handleProjectOpen)
+
 	mux.HandleFunc("/api/events", s.handleEvents)
 
 	// Static file server
@@ -194,4 +227,76 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 			flusher.Flush()
 		}
 	}
+}
+
+func (s *Server) handleProjectSave(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req struct {
+		FilePath string        `json:"filePath"`
+		Project  ProjectConfig `json:"project"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid JSON body", http.StatusBadRequest)
+		return
+	}
+
+	if req.FilePath == "" {
+		if req.Project.ProjectName != "" {
+			req.FilePath = req.Project.ProjectName + ".vbxp"
+		} else {
+			req.FilePath = "project.vbxp"
+		}
+	}
+
+	data, err := json.MarshalIndent(req.Project, "", "  ")
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to marshal project: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	if err := os.WriteFile(req.FilePath, data, 0644); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to save project file: %v", err), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status":   "success",
+		"filePath": req.FilePath,
+		"project":  req.Project,
+	})
+}
+
+func (s *Server) handleProjectOpen(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	filePath := r.URL.Query().Get("filePath")
+	if filePath == "" {
+		filePath = "project.vbxp"
+	}
+
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to read project file: %v", err), http.StatusNotFound)
+		return
+	}
+
+	var project ProjectConfig
+	if err := json.Unmarshal(content, &project); err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse project file: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"filePath": filePath,
+		"project":  project,
+	})
 }
