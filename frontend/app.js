@@ -152,7 +152,9 @@ MsgBox "Hello from VBX Studio!"`;
 
   const btnOpen = document.getElementById("btn-open");
   const projectFileInput = document.getElementById("project-file-input");
-  const menuFile = document.getElementById("menu-file");
+  const vb6FileInput = document.getElementById("vb6-file-input");
+  const menuOpenProject = document.getElementById("menu-open-project");
+  const menuImportVB6 = document.getElementById("menu-import-vb6");
 
   // Save Project (.vbxp)
   async function saveProject() {
@@ -286,6 +288,18 @@ MsgBox "Hello from VBX Studio!"`;
     });
   }
 
+  if (menuOpenProject) {
+    menuOpenProject.addEventListener("click", () => {
+      projectFileInput.click();
+    });
+  }
+
+  if (menuImportVB6) {
+    menuImportVB6.addEventListener("click", () => {
+      vb6FileInput.click();
+    });
+  }
+
   if (projectFileInput) {
     projectFileInput.addEventListener("change", (e) => {
       const file = e.target.files[0];
@@ -299,17 +313,42 @@ MsgBox "Hello from VBX Studio!"`;
         } catch (err) {
           appendConsoleLine(`[Error] Failed to parse .vbxp project file: ${err.message}`, "stderr");
         }
-        // Reset file input value so selecting the same file triggers change again
         e.target.value = "";
       };
       reader.readAsText(file);
     });
   }
 
-  if (menuFile) {
-    menuFile.addEventListener("click", () => {
-      // Trigger file selection on File menu click or present options
-      projectFileInput.click();
+  if (vb6FileInput) {
+    vb6FileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (event) => {
+        const content = event.target.result;
+        try {
+          const response = await fetch(`/api/project/import-vb6?filename=${encodeURIComponent(file.name)}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ filename: file.name, content: content })
+          });
+
+          if (!response.ok) {
+            const errText = await response.text();
+            appendConsoleLine(`[Error] Failed to import VB6 file: ${errText}`, "stderr");
+            return;
+          }
+
+          const projectData = await response.json();
+          loadProject(projectData, `${projectData.projectName || "imported"}.vbxp`);
+          appendConsoleLine(`[VBX Studio] Successfully imported legacy VB6 project: ${projectData.projectName || file.name}`, "system");
+        } catch (err) {
+          appendConsoleLine(`[Error] Failed to import VB6 file: ${err.message}`, "stderr");
+        }
+        e.target.value = "";
+      };
+      reader.readAsText(file);
     });
   }
 

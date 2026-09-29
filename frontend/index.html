@@ -19,7 +19,13 @@
           <span class="logo-studio">STUDIO</span>
         </div>
         <nav class="menu-bar">
-          <div class="menu-item" id="menu-file">File</div>
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-file">File</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-open-project">Open Project (.vbxp)</div>
+              <div class="dropdown-item" id="menu-import-vb6">Import VB6 (.frm, .vbp)</div>
+            </div>
+          </div>
           <div class="menu-item" id="menu-edit">Edit</div>
           <div class="menu-item" id="menu-project">Project</div>
           <div class="menu-item" id="menu-help">Help</div>
@@ -47,6 +53,7 @@
           <span>Open</span>
         </button>
         <input type="file" id="project-file-input" accept=".vbxp,.json" style="display:none">
+        <input type="file" id="vb6-file-input" accept=".frm,.vbp,.bas" style="display:none">
         <button id="btn-save" class="btn btn-save" title="Save Project (.vbxp)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
             <path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/>
@@ -115,7 +122,7 @@
           <div class="toolbox-item" draggable="true" data-control-type="Timer" title="Timer Control">
             <svg class="toolbox-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <circle cx="12" cy="12" r="9"/>
-              <polyline points="12 6 12 12 16 14"/>
+              <polyline points="12 6 12 16 14"/>
             </svg>
             <span class="toolbox-label">Timer</span>
           </div>

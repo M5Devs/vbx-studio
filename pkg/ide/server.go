@@ -3,12 +3,13 @@ package ide
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
-
 
 type FormConfig struct {
 	Name      string `json:"name"`
@@ -61,6 +62,7 @@ func (s *Server) RegisterHandlers(mux *http.ServeMux) {
 	mux.HandleFunc("/api/open", s.handleOpen)
 	mux.HandleFunc("/api/project/save", s.handleProjectSave)
 	mux.HandleFunc("/api/project/open", s.handleProjectOpen)
+	mux.HandleFunc("/api/project/import-vb6", s.handleImportVB6)
 
 	mux.HandleFunc("/api/events", s.handleEvents)
 
@@ -299,4 +301,50 @@ func (s *Server) handleProjectOpen(w http.ResponseWriter, r *http.Request) {
 		"filePath": filePath,
 		"project":  project,
 	})
+}
+
+func (s *Server) handleImportVB6(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var rawContent string
+	filename := r.URL.Query().Get("filename")
+
+	contentType := r.Header.Get("Content-Type")
+	if contentType == "application/json" || strings.HasPrefix(contentType, "application/json") {
+		var req struct {
+			Filename string `json:"filename"`
+			Content  string `json:"content"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil {
+			rawContent = req.Content
+			if req.Filename != "" {
+				filename = req.Filename
+			}
+		}
+	}
+
+	if rawContent == "" {
+		bodyBytes, err := io.ReadAll(r.Body)
+		if err != nil {
+			http.Error(w, "Failed to read body", http.StatusBadRequest)
+			return
+		}
+		rawContent = string(bodyBytes)
+	}
+
+	if filename == "" {
+		filename = "imported.frm"
+	}
+
+	project, err := ImportVB6(rawContent, filename)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("Failed to parse VB6 file: %v", err), http.StatusBadRequest)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(project)
 }
