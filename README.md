@@ -2,7 +2,7 @@
 
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/vbx-studio)
 [![Go Version](https://img.shields.io/badge/go-1.24%2B-blue)](https://golang.org)
-[![License](https://img.shields.io/badge/license-MIT-purple)](#license)
+[![License](https://img.shields.io/badge/license-GPLv3-blue)](#license)
 
 **VBX Studio** is a modern, lightweight, cross-platform visual IDE for the **Visual Basic X (VBX)** programming language. Phase 1 introduces the desktop IDE shell featuring the classic 3-pane Visual Basic layout, an integrated code editor with syntax highlighting, and a Go backend process runner to execute `.vbx` scripts with live real-time log output.
 
@@ -118,4 +118,4 @@ go test -v ./...
 
 ## 📜 License
 
-Distributed under the MIT License.
+Distributed under the GPLv3 License.
