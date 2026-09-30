@@ -7,6 +7,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release Tag to attach binaries to (e.g. v0.1.0-alpha)'
+        required: true
+        default: 'v0.1.0-alpha'
 
 permissions:
   contents: write
@@ -83,21 +88,24 @@ jobs:
           cp -r frontend build_macintel/
           cd build_macintel && tar -czf ../dist/vbx-studio-macos-amd64.tar.gz . && cd ..
 
-          echo "All-in-One Bundles are ready in dist/:"
+          echo "All-in-One Bundles are ready:"
           ls -lh dist/
 
-      # حفظ الحزم كـ Artifact داخل GitHub Actions
+      # حفظ الحزم كـ Artifact داخل أفعال جيت هاب
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vbx-studio-all-in-one
           path: dist/*
 
-      # رفع كل الحزم تلقائياً في صفحة الـ Releases
-      - name: Attach Bundles to GitHub Release
+      # رفع الملفات وضمان عدم الإلغاء
+      - name: Create / Update GitHub Release & Upload Files
         uses: softprops/action-gh-release@v2
-        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         with:
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          name: VBX Studio ${{ github.event.inputs.tag_name || github.ref_name }}
+          prerelease: true
+          generate_release_notes: true
           files: dist/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
