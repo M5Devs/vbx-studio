@@ -19,7 +19,7 @@ jobs:
       - name: Checkout VBX Studio Repo
         uses: actions/checkout@v4
 
-      # 📥 سحب ريبو الكومبايلر الأساسي وبناؤه مع الاستوديو
+      # سحب ريبو الكومبايلر الأساسي وبناؤه مع الاستوديو
       - name: Checkout Core VBX Compiler Repo
         uses: actions/checkout@v4
         with:
@@ -39,7 +39,7 @@ jobs:
           echo "Packaging Windows amd64..."
           mkdir -p build_win64
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build_win64/vbx-studio.exe ./cmd/vbx-studio
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build_win64/vbx.exe ./core-vbx/cmd/vbx
+          (cd core-vbx && GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o ../build_win64/vbx.exe ./cmd/vbx)
           cp -r frontend build_win64/
           cd build_win64 && zip -r ../dist/vbx-studio-windows-amd64.zip . && cd ..
 
@@ -47,7 +47,7 @@ jobs:
           echo "Packaging Windows arm64..."
           mkdir -p build_winarm
           GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o build_winarm/vbx-studio.exe ./cmd/vbx-studio
-          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o build_winarm/vbx.exe ./core-vbx/cmd/vbx
+          (cd core-vbx && GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o ../build_winarm/vbx.exe ./cmd/vbx)
           cp -r frontend build_winarm/
           cd build_winarm && zip -r ../dist/vbx-studio-windows-arm64.zip . && cd ..
 
@@ -55,7 +55,7 @@ jobs:
           echo "Packaging Linux amd64..."
           mkdir -p build_linux64
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build_linux64/vbx-studio ./cmd/vbx-studio
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build_linux64/vbx ./core-vbx/cmd/vbx
+          (cd core-vbx && GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o ../build_linux64/vbx ./cmd/vbx)
           cp -r frontend build_linux64/
           cd build_linux64 && tar -czf ../dist/vbx-studio-linux-amd64.tar.gz . && cd ..
 
@@ -63,7 +63,7 @@ jobs:
           echo "Packaging Linux arm64..."
           mkdir -p build_linuxarm
           GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build_linuxarm/vbx-studio ./cmd/vbx-studio
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build_linuxarm/vbx ./core-vbx/cmd/vbx
+          (cd core-vbx && GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o ../build_linuxarm/vbx ./cmd/vbx)
           cp -r frontend build_linuxarm/
           cd build_linuxarm && tar -czf ../dist/vbx-studio-linux-arm64.tar.gz . && cd ..
 
@@ -71,7 +71,7 @@ jobs:
           echo "Packaging macOS arm64..."
           mkdir -p build_macarm
           GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build_macarm/vbx-studio ./cmd/vbx-studio
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build_macarm/vbx ./core-vbx/cmd/vbx
+          (cd core-vbx && GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o ../build_macarm/vbx ./cmd/vbx)
           cp -r frontend build_macarm/
           cd build_macarm && tar -czf ../dist/vbx-studio-macos-arm64.tar.gz . && cd ..
 
@@ -79,19 +79,21 @@ jobs:
           echo "Packaging macOS amd64..."
           mkdir -p build_macintel
           GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build_macintel/vbx-studio ./cmd/vbx-studio
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build_macintel/vbx ./core-vbx/cmd/vbx
+          (cd core-vbx && GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o ../build_macintel/vbx ./cmd/vbx)
           cp -r frontend build_macintel/
           cd build_macintel && tar -czf ../dist/vbx-studio-macos-amd64.tar.gz . && cd ..
 
-          echo "All-in-One Bundles are ready:"
+          echo "All-in-One Bundles are ready in dist/:"
           ls -lh dist/
 
+      # حفظ الحزم كـ Artifact داخل GitHub Actions
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: vbx-studio-all-in-one
           path: dist/*
 
+      # رفع كل الحزم تلقائياً في صفحة الـ Releases
       - name: Attach Bundles to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
