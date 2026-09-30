@@ -1,6 +1,6 @@
 # VBX Studio Shell
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/vbx-studio)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/M5Devs/vbx-studio)
 [![Go Version](https://img.shields.io/badge/go-1.24%2B-blue)](https://golang.org)
 [![License](https://img.shields.io/badge/license-GPLv3-blue)](#license)
 
