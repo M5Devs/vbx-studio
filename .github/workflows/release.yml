@@ -1,0 +1,82 @@
+name: Build & Release VBX Studio
+
+on:
+  release:
+    types: [published]
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build Multi-Platform Studio
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+
+      - name: Compile & Package for All Architectures
+        run: |
+          mkdir -p dist
+
+          # 1. Windows AMD64
+          echo "Building Windows amd64..."
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build_win64/vbx-studio.exe ./cmd/vbx-studio
+          cp -r frontend build_win64/
+          cd build_win64 && zip -r ../dist/vbx-studio-windows-amd64.zip . && cd ..
+
+          # 2. Windows ARM64
+          echo "Building Windows arm64..."
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o build_winarm/vbx-studio.exe ./cmd/vbx-studio
+          cp -r frontend build_winarm/
+          cd build_winarm && zip -r ../dist/vbx-studio-windows-arm64.zip . && cd ..
+
+          # 3. Linux AMD64
+          echo "Building Linux amd64..."
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build_linux64/vbx-studio ./cmd/vbx-studio
+          cp -r frontend build_linux64/
+          cd build_linux64 && tar -czf ../dist/vbx-studio-linux-amd64.tar.gz . && cd ..
+
+          # 4. Linux ARM64 (Raspberry Pi & SBCs)
+          echo "Building Linux arm64..."
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build_linuxarm/vbx-studio ./cmd/vbx-studio
+          cp -r frontend build_linuxarm/
+          cd build_linuxarm && tar -czf ../dist/vbx-studio-linux-arm64.tar.gz . && cd ..
+
+          # 5. macOS Apple Silicon (M1/M2/M3/M4)
+          echo "Building macOS arm64..."
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build_macarm/vbx-studio ./cmd/vbx-studio
+          cp -r frontend build_macarm/
+          cd build_macarm && tar -czf ../dist/vbx-studio-macos-arm64.tar.gz . && cd ..
+
+          # 6. macOS Intel
+          echo "Building macOS amd64..."
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build_macintel/vbx-studio ./cmd/vbx-studio
+          cp -r frontend build_macintel/
+          cd build_macintel && tar -czf ../dist/vbx-studio-macos-amd64.tar.gz . && cd ..
+
+          echo "Dist artifacts ready:"
+          ls -la dist/
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: vbx-studio-binaries
+          path: dist/*
+
+      - name: Attach Assets to GitHub Release
+        uses: softprops/action-gh-release@v2
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
+        with:
+          files: dist/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
