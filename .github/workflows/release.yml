@@ -1,4 +1,4 @@
-name: Build & Release VBX Studio
+name: Build & Release VBX Studio (All-In-One Bundle)
 
 on:
   release:
@@ -13,67 +13,86 @@ permissions:
 
 jobs:
   build-and-release:
-    name: Build Multi-Platform Studio
+    name: Build All-In-One Studio Packages
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout VBX Studio Repo
         uses: actions/checkout@v4
+
+      # 📥 سحب ريبو الكومبايلر الأساسي وبناؤه مع الاستوديو
+      - name: Checkout Core VBX Compiler Repo
+        uses: actions/checkout@v4
+        with:
+          repository: 'M5Devs/vbx'
+          path: 'core-vbx'
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
           go-version: '1.22'
 
-      - name: Compile & Package for All Architectures
+      - name: Compile Studio + Bundled Compiler for All Platforms
         run: |
           mkdir -p dist
 
           # 1. Windows AMD64
-          echo "Building Windows amd64..."
+          echo "Packaging Windows amd64..."
+          mkdir -p build_win64
           GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build_win64/vbx-studio.exe ./cmd/vbx-studio
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o build_win64/vbx.exe ./core-vbx/cmd/vbx
           cp -r frontend build_win64/
           cd build_win64 && zip -r ../dist/vbx-studio-windows-amd64.zip . && cd ..
 
           # 2. Windows ARM64
-          echo "Building Windows arm64..."
+          echo "Packaging Windows arm64..."
+          mkdir -p build_winarm
           GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o build_winarm/vbx-studio.exe ./cmd/vbx-studio
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o build_winarm/vbx.exe ./core-vbx/cmd/vbx
           cp -r frontend build_winarm/
           cd build_winarm && zip -r ../dist/vbx-studio-windows-arm64.zip . && cd ..
 
           # 3. Linux AMD64
-          echo "Building Linux amd64..."
+          echo "Packaging Linux amd64..."
+          mkdir -p build_linux64
           GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build_linux64/vbx-studio ./cmd/vbx-studio
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o build_linux64/vbx ./core-vbx/cmd/vbx
           cp -r frontend build_linux64/
           cd build_linux64 && tar -czf ../dist/vbx-studio-linux-amd64.tar.gz . && cd ..
 
-          # 4. Linux ARM64 (Raspberry Pi & SBCs)
-          echo "Building Linux arm64..."
+          # 4. Linux ARM64 (Raspberry Pi)
+          echo "Packaging Linux arm64..."
+          mkdir -p build_linuxarm
           GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build_linuxarm/vbx-studio ./cmd/vbx-studio
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o build_linuxarm/vbx ./core-vbx/cmd/vbx
           cp -r frontend build_linuxarm/
           cd build_linuxarm && tar -czf ../dist/vbx-studio-linux-arm64.tar.gz . && cd ..
 
           # 5. macOS Apple Silicon (M1/M2/M3/M4)
-          echo "Building macOS arm64..."
+          echo "Packaging macOS arm64..."
+          mkdir -p build_macarm
           GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build_macarm/vbx-studio ./cmd/vbx-studio
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o build_macarm/vbx ./core-vbx/cmd/vbx
           cp -r frontend build_macarm/
           cd build_macarm && tar -czf ../dist/vbx-studio-macos-arm64.tar.gz . && cd ..
 
           # 6. macOS Intel
-          echo "Building macOS amd64..."
+          echo "Packaging macOS amd64..."
+          mkdir -p build_macintel
           GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build_macintel/vbx-studio ./cmd/vbx-studio
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o build_macintel/vbx ./core-vbx/cmd/vbx
           cp -r frontend build_macintel/
           cd build_macintel && tar -czf ../dist/vbx-studio-macos-amd64.tar.gz . && cd ..
 
-          echo "Dist artifacts ready:"
-          ls -la dist/
+          echo "All-in-One Bundles are ready:"
+          ls -lh dist/
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: vbx-studio-binaries
+          name: vbx-studio-all-in-one
           path: dist/*
 
-      - name: Attach Assets to GitHub Release
+      - name: Attach Bundles to GitHub Release
         uses: softprops/action-gh-release@v2
         if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         with:
