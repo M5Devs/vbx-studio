@@ -70,6 +70,11 @@ const sandbox = {
   URL: { createObjectURL: () => "blob:test", revokeObjectURL: () => {} },
   Blob: class {},
   FileReader: class {},
+  window: {
+    location: { hostname: "username.github.io", protocol: "https:" },
+    alert: (msg) => { sandbox._testEnv.lastAlert = msg; },
+    prompt: (msg, def) => { sandbox._testEnv.lastPrompt = msg; return "UserPromptVal"; }
+  },
   fetch: async () => { throw new Error("Offline"); },
   _testEnv: {}
 };
@@ -80,7 +85,7 @@ const sandboxValues = sandboxKeys.map(k => sandbox[k]);
 // Inject window._testEnv export right before renderDesigner()
 const scriptToRun = appJsContent.replace(
   '  // Initial Designer Render\n  renderDesigner();',
-  '  _testEnv.evaluateJSExpr = evaluateJSExpr;\n  _testEnv.splitByOp = splitByOp;\n  _testEnv.runClientSideVBX = runClientSideVBX;\n  _testEnv.parseVB6ClientSide = parseVB6ClientSide;\n  _testEnv.parseFRMClientSide = parseFRMClientSide;\n  _testEnv.parseVBPClientSide = parseVBPClientSide;\n  _testEnv.parseBASClientSide = parseBASClientSide;\n  // renderDesigner();'
+  '  _testEnv.evaluateJSExpr = evaluateJSExpr;\n  _testEnv.splitByOp = splitByOp;\n  _testEnv.runClientSideVBX = runClientSideVBX;\n  _testEnv.parseVB6ClientSide = parseVB6ClientSide;\n  _testEnv.parseFRMClientSide = parseFRMClientSide;\n  _testEnv.parseVBPClientSide = parseVBPClientSide;\n  _testEnv.parseBASClientSide = parseBASClientSide;\n  _testEnv.isStaticHosting = isStaticHosting;\n  // renderDesigner();'
 );
 
 const runTestEnv = new Function(...sandboxKeys, scriptToRun);
@@ -104,18 +109,25 @@ Print "Line 1"
 Dim num = 20
 Print num + 5
 MsgBox "Alert box"
+Dim name = InputBox("Enter Name", "Title", "DefaultName")
+Print "Hello " & name
 For i = 1 To 2
   Print "Loop " & i
 Next i
 Dim count = 1
-Do While count <= 2
-  Print "DoWhile " & count
+While count <= 2
+  Print "WhileWend " & count
   count = count + 1
-Loop
+Wend
   `;
 
   await env.runClientSideVBX(code);
-  console.log("✓ Client interpreter execution passed");
+  assert.strictEqual(env.lastAlert, "Alert box");
+  assert.strictEqual(env.lastPrompt, "Enter Name");
+  console.log("✓ Client interpreter execution & InputBox/MsgBox/Loops passed");
+
+  assert.strictEqual(env.isStaticHosting(), true);
+  console.log("✓ Static hosting domain detection passed");
 }
 
 // Test 3: VB6 Importer
