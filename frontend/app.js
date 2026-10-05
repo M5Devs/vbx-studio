@@ -77,25 +77,619 @@ MsgBox "Hello from VBX Studio!"`;
     return Math.round(val / GRID_SIZE) * GRID_SIZE;
   }
 
+  // Client-Side JS VBX Interpreter for Static Hosting (e.g. GitHub Pages)
+  let abortRequested = false;
+
+  function evaluateJSExpr(expr, vars = {}) {
+    expr = expr.trim();
+    if (!expr) return "";
+
+    const concatParts = splitByOp(expr, "&");
+    if (concatParts.length > 1) {
+      return concatParts.map((p) => evaluateJSExpr(p, vars)).join("");
+    }
+
+    if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+      return expr.slice(1, -1);
+    }
+
+    if (!isNaN(Number(expr)) && expr !== "") {
+      return Number(expr);
+    }
+
+    if (expr.toLowerCase() === "true") return true;
+    if (expr.toLowerCase() === "false") return false;
+
+    if (Object.prototype.hasOwnProperty.call(vars, expr)) {
+      return vars[expr];
+    }
+
+    try {
+      let replaced = expr.replace(/\b[a-zA-Z_][a-zA-Z0-9_]*\b/g, (match) => {
+        const lower = match.toLowerCase();
+        if (lower === "true" || lower === "false" || lower === "and" || lower === "or" || lower === "not") {
+          return match;
+        }
+        if (Object.prototype.hasOwnProperty.call(vars, match)) {
+          const val = vars[match];
+          if (typeof val === "string") return JSON.stringify(val);
+          return val;
+        }
+        return match;
+      });
+
+      replaced = replaced.replace(/<>/g, "!=");
+      return Function('"use strict"; return (' + replaced + ');')();
+    } catch (e) {
+      return expr;
+    }
+  }
+
+  function splitByOp(str, op) {
+    const parts = [];
+    let current = "";
+    let inQuotes = false;
+    let quoteChar = "";
+
+    for (let i = 0; i < str.length; i++) {
+      const char = str[i];
+      if (char === '"' || char === "'") {
+        if (!inQuotes) {
+          inQuotes = true;
+          quoteChar = char;
+        } else if (char === quoteChar) {
+          inQuotes = false;
+        }
+      }
+      if (char === op && !inQuotes) {
+        parts.push(current);
+        current = "";
+      } else {
+        current += char;
+      }
+    }
+    parts.push(current);
+    return parts;
+  }
+
+  async function runClientSideVBX(code) {
+    abortRequested = false;
+    const lines = code.split("\n");
+    const vars = {};
+
+    function log(text, stream = "stdout") {
+      appendConsoleLine(text, stream);
+    }
+
+    log("[VBX Studio] Executing script client-side (GitHub Pages mode)...", "system");
+    const startTime = Date.now();
+
+    let ip = 0;
+    let maxSteps = 10000;
+    let steps = 0;
+
+    while (ip < lines.length) {
+      if (abortRequested) {
+        log("[VBX Studio] Execution aborted by user.", "stderr");
+        setRunningState(false);
+        return;
+      }
+
+      steps++;
+      if (steps > maxSteps) {
+        log("[Error] Execution step limit exceeded (possible infinite loop).", "stderr");
+        setRunningState(false);
+        return;
+      }
+
+      const rawLine = lines[ip];
+      const line = rawLine.trim();
+
+      if (!line || line.startsWith("'") || line.toLowerCase().startsWith("rem ")) {
+        ip++;
+        continue;
+      }
+
+      if (/^(Sub|Function|End Sub|End Function)\b/i.test(line)) {
+        ip++;
+        continue;
+      }
+
+      if (/^Print\s+/i.test(line)) {
+        const expr = line.replace(/^Print\s+/i, "");
+        const val = evaluateJSExpr(expr, vars);
+        log(String(val), "stdout");
+        await new Promise((r) => setTimeout(r, 10));
+        ip++;
+        continue;
+      }
+
+      if (/^MsgBox\s+/i.test(line)) {
+        const expr = line.replace(/^MsgBox\s+/i, "");
+        const val = evaluateJSExpr(expr, vars);
+        log("[Dialog MsgBox] " + val, "stdout");
+        await new Promise((r) => setTimeout(r, 10));
+        ip++;
+        continue;
+      }
+
+      // For loop
+      const forMatch = line.match(/^For\s+([a-zA-Z0-9_]+)\s*=\s*(.+?)\s+To\s+(.+?)(?:\s+Step\s+(.+?))?$/i);
+      if (forMatch) {
+        const varName = forMatch[1];
+        const startVal = Number(evaluateJSExpr(forMatch[2], vars));
+        const endVal = Number(evaluateJSExpr(forMatch[3], vars));
+        const stepVal = forMatch[4] ? Number(evaluateJSExpr(forMatch[4], vars)) : 1;
+
+        let nest = 1;
+        let nextIp = ip + 1;
+        while (nextIp < lines.length) {
+          const l = lines[nextIp].trim();
+          if (/^For\s+/i.test(l)) nest++;
+          if (/^Next\b/i.test(l)) {
+            nest--;
+            if (nest === 0) break;
+          }
+          nextIp++;
+        }
+
+        if (nextIp >= lines.length) {
+          log("Line " + (ip + 1) + ": Syntax error - For without Next", "stderr");
+          setRunningState(false);
+          return;
+        }
+
+        vars[varName] = startVal;
+        const loopBodyLines = lines.slice(ip + 1, nextIp);
+
+        while ((stepVal > 0 && vars[varName] <= endVal) || (stepVal < 0 && vars[varName] >= endVal)) {
+          for (let bodyLine of loopBodyLines) {
+            if (abortRequested) {
+              log("[VBX Studio] Execution aborted by user.", "stderr");
+              setRunningState(false);
+              return;
+            }
+            const bl = bodyLine.trim();
+            if (!bl || bl.startsWith("'") || bl.toLowerCase().startsWith("rem ")) continue;
+            if (/^Print\s+/i.test(bl)) {
+              log(String(evaluateJSExpr(bl.replace(/^Print\s+/i, ""), vars)), "stdout");
+            } else if (/^MsgBox\s+/i.test(bl)) {
+              log("[Dialog MsgBox] " + evaluateJSExpr(bl.replace(/^MsgBox\s+/i, ""), vars), "stdout");
+            } else if (/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i.test(bl)) {
+              const m = bl.match(/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i);
+              vars[m[2]] = evaluateJSExpr(m[3], vars);
+            }
+            await new Promise((r) => setTimeout(r, 5));
+          }
+          vars[varName] += stepVal;
+        }
+
+        ip = nextIp + 1;
+        continue;
+      }
+
+      // Do While/Until
+      const doMatch = line.match(/^Do\s+(While|Until)\s+(.+)$/i);
+      if (doMatch) {
+        const mode = doMatch[1].toLowerCase();
+        const condExpr = doMatch[2];
+
+        let nest = 1;
+        let loopEndIp = ip + 1;
+        while (loopEndIp < lines.length) {
+          const l = lines[loopEndIp].trim();
+          if (/^Do\s+(While|Until)/i.test(l)) nest++;
+          if (/^Loop\b/i.test(l)) {
+            nest--;
+            if (nest === 0) break;
+          }
+          loopEndIp++;
+        }
+
+        if (loopEndIp >= lines.length) {
+          log("Line " + (ip + 1) + ": Syntax error - Do without Loop", "stderr");
+          setRunningState(false);
+          return;
+        }
+
+        const loopBodyLines = lines.slice(ip + 1, loopEndIp);
+
+        const checkCond = () => {
+          const condVal = Boolean(evaluateJSExpr(condExpr, vars));
+          return mode === "while" ? condVal : !condVal;
+        };
+
+        while (checkCond()) {
+          steps++;
+          if (steps > maxSteps) {
+            log("[Error] Execution step limit exceeded in Do loop.", "stderr");
+            setRunningState(false);
+            return;
+          }
+          for (let bodyLine of loopBodyLines) {
+            if (abortRequested) {
+              log("[VBX Studio] Execution aborted by user.", "stderr");
+              setRunningState(false);
+              return;
+            }
+            const bl = bodyLine.trim();
+            if (!bl || bl.startsWith("'") || bl.toLowerCase().startsWith("rem ")) continue;
+            if (/^Print\s+/i.test(bl)) {
+              log(String(evaluateJSExpr(bl.replace(/^Print\s+/i, ""), vars)), "stdout");
+            } else if (/^MsgBox\s+/i.test(bl)) {
+              log("[Dialog MsgBox] " + evaluateJSExpr(bl.replace(/^MsgBox\s+/i, ""), vars), "stdout");
+            } else if (/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i.test(bl)) {
+              const m = bl.match(/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i);
+              vars[m[2]] = evaluateJSExpr(m[3], vars);
+            }
+            await new Promise((r) => setTimeout(r, 5));
+          }
+        }
+
+        ip = loopEndIp + 1;
+        continue;
+      }
+
+      // While ... Wend
+      const whileMatch = line.match(/^While\s+(.+)$/i);
+      if (whileMatch) {
+        const condExpr = whileMatch[1];
+        let nest = 1;
+        let wendIp = ip + 1;
+        while (wendIp < lines.length) {
+          const l = lines[wendIp].trim();
+          if (/^While\s+/i.test(l)) nest++;
+          if (/^Wend\b/i.test(l)) {
+            nest--;
+            if (nest === 0) break;
+          }
+          wendIp++;
+        }
+
+        if (wendIp >= lines.length) {
+          log("Line " + (ip + 1) + ": Syntax error - While without Wend", "stderr");
+          setRunningState(false);
+          return;
+        }
+
+        const loopBodyLines = lines.slice(ip + 1, wendIp);
+
+        while (Boolean(evaluateJSExpr(condExpr, vars))) {
+          steps++;
+          if (steps > maxSteps) {
+            log("[Error] Execution step limit exceeded in While loop.", "stderr");
+            setRunningState(false);
+            return;
+          }
+          for (let bodyLine of loopBodyLines) {
+            if (abortRequested) {
+              log("[VBX Studio] Execution aborted by user.", "stderr");
+              setRunningState(false);
+              return;
+            }
+            const bl = bodyLine.trim();
+            if (!bl || bl.startsWith("'") || bl.toLowerCase().startsWith("rem ")) continue;
+            if (/^Print\s+/i.test(bl)) {
+              log(String(evaluateJSExpr(bl.replace(/^Print\s+/i, ""), vars)), "stdout");
+            } else if (/^MsgBox\s+/i.test(bl)) {
+              log("[Dialog MsgBox] " + evaluateJSExpr(bl.replace(/^MsgBox\s+/i, ""), vars), "stdout");
+            } else if (/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i.test(bl)) {
+              const m = bl.match(/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i);
+              vars[m[2]] = evaluateJSExpr(m[3], vars);
+            }
+            await new Promise((r) => setTimeout(r, 5));
+          }
+        }
+
+        ip = wendIp + 1;
+        continue;
+      }
+
+      if (/^Dim\s+/i.test(line)) {
+        const decl = line.replace(/^Dim\s+/i, "").trim();
+        const eqIdx = decl.indexOf("=");
+        if (eqIdx !== -1) {
+          const varName = decl.slice(0, eqIdx).trim();
+          const expr = decl.slice(eqIdx + 1).trim();
+          vars[varName] = evaluateJSExpr(expr, vars);
+        } else {
+          vars[decl] = "";
+        }
+        ip++;
+        continue;
+      }
+
+      const assignIdx = line.indexOf("=");
+      if (assignIdx !== -1 && !line.toLowerCase().startsWith("if ")) {
+        const varName = line.slice(0, assignIdx).trim();
+        const expr = line.slice(assignIdx + 1).trim();
+        vars[varName] = evaluateJSExpr(expr, vars);
+        ip++;
+        continue;
+      }
+
+      log("Line " + (ip + 1) + ": Syntax or unknown statement: " + line, "stderr");
+      ip++;
+    }
+
+    const duration = ((Date.now() - startTime) / 1000).toFixed(3) + "s";
+    log("[VBX Studio] Execution finished successfully (Duration: " + duration + ")", "system");
+    setRunningState(false);
+  }
+
+  // Client-Side VB6 Importer (.frm, .vbp, .bas)
+  function mapVB6ControlType(vbType) {
+    switch (vbType) {
+      case "VB.CommandButton": return "Button";
+      case "VB.TextBox": return "TextBox";
+      case "VB.Label": return "Label";
+      case "VB.CheckBox": return "CheckBox";
+      case "VB.Frame": return "Frame";
+      case "VB.Image": return "Image";
+      case "VB.Timer": return "Timer";
+      default:
+        if (vbType.startsWith("VB.")) return vbType.slice(3);
+        return vbType;
+    }
+  }
+
+  function parseKeyValuePair(line) {
+    const idx = line.indexOf("=");
+    if (idx === -1) return null;
+    return { key: line.slice(0, idx).trim(), val: line.slice(idx + 1).trim() };
+  }
+
+  function parseVB6String(val) {
+    val = val.trim();
+    if (val.startsWith('"') && val.endsWith('"') && val.length >= 2) {
+      val = val.slice(1, -1).replace(/""/g, '"');
+    }
+    return val;
+  }
+
+  function parseTwips(val) {
+    val = val.trim();
+    if (val.startsWith("&H")) {
+      const clean = val.slice(2).replace(/&$/, "");
+      const n = parseInt(clean, 16);
+      if (!isNaN(n)) return Math.floor(n / 15);
+    }
+    const n = parseInt(val, 10);
+    if (!isNaN(n)) return Math.floor(n / 15);
+    return 0;
+  }
+
+  function parseBool(val) {
+    val = val.trim().toLowerCase();
+    return !(val === "0" || val === "false");
+  }
+
+  function parseFRMClientSide(content, filename) {
+    let projName = filename ? filename.replace(/\.[^/.]+$/, "") : "ImportedProject";
+    if (!projName) projName = "ImportedProject";
+
+    const proj = {
+      version: "1.0",
+      projectName: projName,
+      form: {
+        name: "Form1",
+        caption: "Form1",
+        width: 600,
+        height: 400,
+        backColor: "#0b0f19"
+      },
+      controls: [],
+      code: ""
+    };
+
+    const lines = content.split("\n");
+    const stack = [];
+    const codeLines = [];
+    let inCodeSection = false;
+
+    for (let rawLine of lines) {
+      const line = rawLine.replace(/\r$/, "");
+      const trimmedLine = line.trim();
+
+      if (inCodeSection) {
+        if (trimmedLine.toLowerCase().startsWith("attribute ")) continue;
+        codeLines.push(line);
+        continue;
+      }
+
+      if (!trimmedLine) continue;
+
+      if (trimmedLine.startsWith("Begin ")) {
+        const parts = trimmedLine.split(/\s+/);
+        if (parts.length >= 2) {
+          const vbType = parts[1];
+          const name = parts[2] || "";
+
+          if (vbType === "VB.Form") {
+            if (name) {
+              proj.form.name = name;
+              proj.form.caption = name;
+            }
+            stack.push({ kind: "form" });
+          } else {
+            const ctrlType = mapVB6ControlType(vbType);
+            const ctrlName = name || `${ctrlType}${proj.controls.length + 1}`;
+            const ctrl = {
+              id: ctrlName,
+              type: ctrlType,
+              caption: ctrlName,
+              text: ctrlName,
+              left: 0,
+              top: 0,
+              width: 100,
+              height: 32,
+              visible: true,
+              enabled: true
+            };
+            proj.controls.push(ctrl);
+            stack.push({ kind: "control", controlIdx: proj.controls.length - 1 });
+          }
+        }
+        continue;
+      }
+
+      if (trimmedLine === "End") {
+        if (stack.length > 0) {
+          const top = stack.pop();
+          if (top.kind === "form") {
+            inCodeSection = true;
+          }
+        }
+        continue;
+      }
+
+      if (stack.length > 0) {
+        const kv = parseKeyValuePair(trimmedLine);
+        if (kv) {
+          const top = stack[stack.length - 1];
+          if (top.kind === "form") {
+            const k = kv.key.toLowerCase();
+            if (k === "caption") proj.form.caption = parseVB6String(kv.val);
+            else if (k === "clientwidth") { const w = parseTwips(kv.val); if (w > 0) proj.form.width = w; }
+            else if (k === "clientheight") { const h = parseTwips(kv.val); if (h > 0) proj.form.height = h; }
+            else if (k === "backcolor") proj.form.backColor = kv.val;
+          } else if (top.kind === "control") {
+            const ctrl = proj.controls[top.controlIdx];
+            const k = kv.key.toLowerCase();
+            if (k === "caption") ctrl.caption = parseVB6String(kv.val);
+            else if (k === "text") ctrl.text = parseVB6String(kv.val);
+            else if (k === "left") ctrl.left = parseTwips(kv.val);
+            else if (k === "top") ctrl.top = parseTwips(kv.val);
+            else if (k === "width") ctrl.width = parseTwips(kv.val);
+            else if (k === "height") ctrl.height = parseTwips(kv.val);
+            else if (k === "visible") ctrl.visible = parseBool(kv.val);
+            else if (k === "enabled") ctrl.enabled = parseBool(kv.val);
+          }
+        }
+      }
+    }
+
+    proj.code = codeLines.join("\n").trim();
+    return proj;
+  }
+
+  function parseVBPClientSide(content, filename) {
+    let projName = filename ? filename.replace(/\.[^/.]+$/, "") : "LegacyProject";
+
+    let title = "";
+    let name = "";
+    const forms = [];
+    const modules = [];
+
+    const lines = content.split("\n");
+    for (let rawLine of lines) {
+      const line = rawLine.replace(/\r$/, "").trim();
+      if (!line || line.startsWith(";")) continue;
+
+      const kv = parseKeyValuePair(line);
+      if (!kv) continue;
+
+      const k = kv.key.toLowerCase();
+      if (k === "title") title = parseVB6String(kv.val);
+      else if (k === "name") name = parseVB6String(kv.val);
+      else if (k === "form") forms.push(parseVB6String(kv.val));
+      else if (k === "module") modules.push(parseVB6String(kv.val));
+    }
+
+    if (title) projName = title;
+    else if (name) projName = name;
+
+    const codeLines = [
+      `' Imported Legacy VB6 Project: ${projName}`
+    ];
+    if (forms.length > 0) codeLines.push(`' Forms: ${forms.join(", ")}`);
+    if (modules.length > 0) codeLines.push(`' Modules: ${modules.join(", ")}`);
+    codeLines.push("", "Sub Main()", `    Print "Loaded legacy project: ${projName}"`, "End Sub");
+
+    return {
+      version: "1.0",
+      projectName: projName,
+      form: {
+        name: "Form1",
+        caption: projName,
+        width: 600,
+        height: 400,
+        backColor: "#0b0f19"
+      },
+      controls: [],
+      code: codeLines.join("\n")
+    };
+  }
+
+  function parseBASClientSide(content, filename) {
+    let projName = filename ? filename.replace(/\.[^/.]+$/, "") : "Module1";
+
+    const lines = content.split("\n");
+    const codeLines = [];
+
+    for (let rawLine of lines) {
+      const line = rawLine.replace(/\r$/, "");
+      const trimmedLine = line.trim();
+
+      if (trimmedLine.toLowerCase().startsWith("attribute ")) continue;
+      codeLines.push(line);
+    }
+
+    return {
+      version: "1.0",
+      projectName: projName,
+      form: {
+        name: "Form1",
+        caption: projName,
+        width: 600,
+        height: 400,
+        backColor: "#0b0f19"
+      },
+      controls: [],
+      code: codeLines.join("\n").trim()
+    };
+  }
+
+  function parseVB6ClientSide(content, filename) {
+    let ext = "";
+    if (filename && filename.includes(".")) {
+      ext = filename.slice(filename.lastIndexOf(".")).toLowerCase();
+    }
+    if (!ext) {
+      if (content.includes("Begin VB.Form")) ext = ".frm";
+      else if (content.includes("Type=Exe") || content.includes("Form=")) ext = ".vbp";
+      else ext = ".bas";
+    }
+
+    if (ext === ".vbp") return parseVBPClientSide(content, filename);
+    if (ext === ".bas") return parseBASClientSide(content, filename);
+    return parseFRMClientSide(content, filename);
+  }
+
   // Setup Server-Sent Events (SSE) for execution logs
   function setupSSE() {
-    const eventSource = new EventSource("/api/events");
+    try {
+      const eventSource = new EventSource("/api/events");
 
-    eventSource.onmessage = (event) => {
-      try {
-        const line = JSON.parse(event.data);
-        appendConsoleLine(line.Text, line.Stream);
-        if (line.Stream === "system" && (line.Text.includes("[VBX Studio] Execution finished") || line.Text.includes("Process exited"))) {
-          setRunningState(false);
+      eventSource.onmessage = (event) => {
+        try {
+          const line = JSON.parse(event.data);
+          appendConsoleLine(line.Text, line.Stream);
+          if (line.Stream === "system" && (line.Text.includes("[VBX Studio] Execution finished") || line.Text.includes("Process exited"))) {
+            setRunningState(false);
+          }
+        } catch (e) {
+          console.error("Failed to parse SSE line:", e);
         }
-      } catch (e) {
-        console.error("Failed to parse SSE line:", e);
-      }
-    };
+      };
 
-    eventSource.onerror = () => {
-      console.log("SSE Connection lost, reconnecting...");
-    };
+      eventSource.onerror = () => {
+        // Quietly close SSE if running on static host (e.g., GitHub Pages) where /api/events is unavailable
+        eventSource.close();
+      };
+    } catch (e) {
+      // EventSource not supported or unavailable
+    }
   }
 
   setupSSE();
@@ -135,18 +729,20 @@ MsgBox "Hello from VBX Studio!"`;
         setRunningState(false);
       }
     } catch (err) {
-      appendConsoleLine(`[Error] Request failed: ${err.message}`, "stderr");
-      setRunningState(false);
+      // Backend unavailable or static hosting (e.g., GitHub Pages) -> Fallback to client-side JS runner
+      runClientSideVBX(code);
     }
   });
 
   // Handle Stop
   btnStop.addEventListener("click", async () => {
+    abortRequested = true;
     try {
       await fetch("/api/stop", { method: "POST" });
       appendConsoleLine("[VBX Studio] Stop request sent.", "system");
     } catch (err) {
-      appendConsoleLine(`[Error] Failed to stop execution: ${err.message}`, "stderr");
+      appendConsoleLine("[VBX Studio] Stop request set (client-side execution aborted).", "system");
+      setRunningState(false);
     }
   });
 
@@ -186,7 +782,7 @@ MsgBox "Hello from VBX Studio!"`;
       code: code
     };
 
-    // Download file in browser
+    // Download file in browser using HTML5 Blob download
     const jsonStr = JSON.stringify(projectData, null, 2);
     const blob = new Blob([jsonStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -198,21 +794,17 @@ MsgBox "Hello from VBX Studio!"`;
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 
-    // Also call backend API to save project cleanly
+    appendConsoleLine(`[VBX Studio] Project saved successfully to ${fileName}`, "system");
+
+    // Optionally sync with backend API if available
     try {
-      const response = await fetch("/api/project/save", {
+      await fetch("/api/project/save", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filePath: fileName, project: projectData })
       });
-
-      if (response.ok) {
-        appendConsoleLine(`[VBX Studio] Project saved successfully to ${fileName}`, "system");
-      } else {
-        appendConsoleLine(`[Error] Backend project save returned error status`, "stderr");
-      }
     } catch (err) {
-      appendConsoleLine(`[Error] Project save request failed: ${err.message}`, "stderr");
+      // Ignore network errors in static host / offline mode
     }
 
     currentFilename.textContent = fileName;
@@ -327,6 +919,8 @@ MsgBox "Hello from VBX Studio!"`;
       const reader = new FileReader();
       reader.onload = async (event) => {
         const content = event.target.result;
+        let projectData = null;
+
         try {
           const response = await fetch(`/api/project/import-vb6?filename=${encodeURIComponent(file.name)}`, {
             method: "POST",
@@ -334,18 +928,25 @@ MsgBox "Hello from VBX Studio!"`;
             body: JSON.stringify({ filename: file.name, content: content })
           });
 
-          if (!response.ok) {
-            const errText = await response.text();
-            appendConsoleLine(`[Error] Failed to import VB6 file: ${errText}`, "stderr");
+          if (response.ok) {
+            projectData = await response.json();
+          }
+        } catch (err) {
+          // Backend offline / static mode -> Fall back to pure JS client-side parser
+        }
+
+        if (!projectData) {
+          try {
+            projectData = parseVB6ClientSide(content, file.name);
+          } catch (parseErr) {
+            appendConsoleLine(`[Error] Failed to import VB6 file: ${parseErr.message}`, "stderr");
+            e.target.value = "";
             return;
           }
-
-          const projectData = await response.json();
-          loadProject(projectData, `${projectData.projectName || "imported"}.vbxp`);
-          appendConsoleLine(`[VBX Studio] Successfully imported legacy VB6 project: ${projectData.projectName || file.name}`, "system");
-        } catch (err) {
-          appendConsoleLine(`[Error] Failed to import VB6 file: ${err.message}`, "stderr");
         }
+
+        loadProject(projectData, `${projectData.projectName || "imported"}.vbxp`);
+        appendConsoleLine(`[VBX Studio] Successfully imported legacy VB6 project: ${projectData.projectName || file.name}`, "system");
         e.target.value = "";
       };
       reader.readAsText(file);
