@@ -357,6 +357,7 @@ body, html {
 
 /* Visual Form Designer Canvas */
 .design-canvas-container {
+  touch-action: none;
   width: 100%;
   height: 100%;
   position: relative;
@@ -368,6 +369,7 @@ body, html {
 }
 
 .designer-form {
+  touch-action: none;
   position: absolute;
   background-color: #121826;
   border: 1px solid var(--accent-purple);
@@ -457,6 +459,19 @@ body, html {
   box-sizing: border-box;
   z-index: 100;
   pointer-events: auto;
+  touch-action: none;
+}
+
+.resize-handle::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  pointer-events: auto;
 }
 
 .handle-nw { top: -4px; left: -4px; cursor: nwse-resize; }
@@ -470,6 +485,7 @@ body, html {
 
 /* Placed Control Base Styling */
 .designer-control {
+  touch-action: none;
   position: absolute;
   box-sizing: border-box;
   cursor: move;
@@ -568,6 +584,90 @@ body, html {
   background-color: rgba(179, 136, 255, 0.1);
   border: 1px solid var(--accent-purple);
   color: var(--accent-purple);
+}
+
+.control-type-combobox {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  justify-content: space-between;
+  padding: 0 6px;
+  font-family: var(--font-mono);
+}
+
+.control-type-combobox-arrow {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.control-type-listbox {
+  background-color: var(--bg-dark);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  padding: 2px 4px;
+  font-family: var(--font-mono);
+  overflow: hidden;
+}
+
+.control-type-listbox-item {
+  padding: 2px 4px;
+  font-size: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.control-type-listbox-item.selected {
+  background-color: var(--bg-hover);
+  color: var(--accent-cyan);
+}
+
+.control-type-optionbutton {
+  background: transparent;
+  color: var(--text-main);
+  justify-content: flex-start;
+  gap: 6px;
+}
+
+.control-type-option-circle {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--accent-cyan);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.control-type-option-circle-dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--accent-cyan);
+  border-radius: 50%;
+}
+
+.control-type-progressbar {
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-color);
+  position: relative;
+  overflow: hidden;
+  justify-content: flex-start;
+}
+
+.control-type-progressbar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-cyan));
+  width: 50%;
+  transition: width 0.2s ease;
+}
+
+.control-type-picturebox {
+  background-color: rgba(18, 24, 38, 0.8);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  flex-direction: column;
+  gap: 4px;
 }
 
 /* Right Pane: Properties Panel */

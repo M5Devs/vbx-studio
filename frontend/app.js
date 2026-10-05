@@ -427,6 +427,12 @@ MsgBox "Hello from VBX Studio!"`;
       case "VB.Frame": return "Frame";
       case "VB.Image": return "Image";
       case "VB.Timer": return "Timer";
+      case "VB.ComboBox": return "ComboBox";
+      case "VB.ListBox": return "ListBox";
+      case "VB.OptionButton": return "OptionButton";
+      case "VB.PictureBox": return "PictureBox";
+      case "MSComctlLib.ProgBar":
+      case "VB.ProgressBar": return "ProgressBar";
       default:
         if (vbType.startsWith("VB.")) return vbType.slice(3);
         return vbType;
@@ -751,6 +757,7 @@ MsgBox "Hello from VBX Studio!"`;
   const vb6FileInput = document.getElementById("vb6-file-input");
   const menuOpenProject = document.getElementById("menu-open-project");
   const menuImportVB6 = document.getElementById("menu-import-vb6");
+  const menuExportHTML = document.getElementById("menu-export-html");
 
   // Save Project (.vbxp)
   async function saveProject() {
@@ -993,6 +1000,192 @@ MsgBox "Hello from VBX Studio!"`;
     });
   });
 
+    if (menuExportHTML) {
+    menuExportHTML.addEventListener("click", () => {
+      exportHTMLApp();
+    });
+  }
+
+  function exportHTMLApp() {
+    const projName = state.projectName || "Project1";
+    const form = state.form;
+    const controls = state.controls;
+    const vbxCode = editor.getValue();
+
+    let controlsHTML = "";
+    controls.forEach(ctrl => {
+      let content = "";
+      if (ctrl.type === "Button") {
+        content = `<button class="vbx-btn" onclick="triggerEvent('${ctrl.id}_Click')">${ctrl.caption || ctrl.name}</button>`;
+      } else if (ctrl.type === "TextBox") {
+        content = `<input type="text" class="vbx-input" id="input-${ctrl.id}" value="${ctrl.text !== undefined ? ctrl.text : (ctrl.caption || ctrl.name)}" oninput="updateControlProp('${ctrl.id}', 'Text', this.value)" />`;
+      } else if (ctrl.type === "Label") {
+        content = `<span id="label-${ctrl.id}">${ctrl.caption || ctrl.name}</span>`;
+      } else if (ctrl.type === "CheckBox") {
+        content = `<label class="vbx-checkbox-label"><input type="checkbox" id="chk-${ctrl.id}" onchange="updateControlProp('${ctrl.id}', 'Value', this.checked ? 1 : 0); triggerEvent('${ctrl.id}_Click')" /> <span>${ctrl.caption || ctrl.name}</span></label>`;
+      } else if (ctrl.type === "Frame") {
+        content = `<fieldset class="vbx-fieldset"><legend>${ctrl.caption || ctrl.name}</legend></fieldset>`;
+      } else if (ctrl.type === "Image") {
+        content = `<div class="vbx-image-box">📷 <span>${ctrl.caption || ctrl.name}</span></div>`;
+      } else if (ctrl.type === "Timer") {
+        content = `<div class="vbx-timer-box">⏱ <span>${ctrl.caption || ctrl.name}</span></div>`;
+      } else if (ctrl.type === "ComboBox") {
+        content = `<select class="vbx-select" id="combo-${ctrl.id}" onchange="updateControlProp('${ctrl.id}', 'Text', this.value); triggerEvent('${ctrl.id}_Click')"><option>${ctrl.text !== undefined ? ctrl.text : (ctrl.caption || ctrl.name)}</option></select>`;
+      } else if (ctrl.type === "ListBox") {
+        content = `<select multiple class="vbx-listbox" id="list-${ctrl.id}" onchange="triggerEvent('${ctrl.id}_Click')"><option selected>${ctrl.text !== undefined ? ctrl.text : (ctrl.caption || ctrl.name)} Item 1</option><option>${ctrl.text !== undefined ? ctrl.text : (ctrl.caption || ctrl.name)} Item 2</option></select>`;
+      } else if (ctrl.type === "OptionButton") {
+        content = `<label class="vbx-option-label"><input type="radio" name="opt_group" id="opt-${ctrl.id}" onchange="triggerEvent('${ctrl.id}_Click')" /> <span>${ctrl.caption || ctrl.name}</span></label>`;
+      } else if (ctrl.type === "ProgressBar") {
+        content = `<div class="vbx-progress-track"><div class="vbx-progress-fill" id="pbar-${ctrl.id}" style="width: 50%;"></div></div>`;
+      } else if (ctrl.type === "PictureBox") {
+        content = `<div class="vbx-picture-box" id="pic-${ctrl.id}">🎨 <span>${ctrl.caption || ctrl.name}</span></div>`;
+      }
+
+      const visStyle = ctrl.visible ? "" : "display: none;";
+      const disAttr = ctrl.enabled ? "" : "disabled";
+
+      controlsHTML += `
+        <div class="standalone-control control-type-${ctrl.type.toLowerCase()}" id="ctrl-${ctrl.id}" style="left: ${ctrl.left}px; top: ${ctrl.top}px; width: ${ctrl.width}px; height: ${ctrl.height}px; ${visStyle}" ${disAttr}>
+          ${content}
+        </div>`;
+    });
+
+    const htmlBundle = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${projName} - Standalone VBX App</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background-color: #080b12; color: #e2e8f0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
+    .standalone-window { position: relative; background-color: #121826; border: 1px solid #00e5ff; border-radius: 6px; box-shadow: 0 10px 30px rgba(0,229,255,0.2); width: ${form.width}px; height: ${form.height}px; overflow: hidden; touch-action: none; }
+    .titlebar { background-color: #1e273d; padding: 8px 12px; font-weight: bold; font-size: 13px; color: #b388ff; border-bottom: 1px solid #232d42; display: flex; justify-content: space-between; align-items: center; }
+    .window-body { position: relative; width: 100%; height: calc(100% - 33px); background-image: radial-gradient(#232d42 1px, transparent 1px); background-size: 8px 8px; }
+    .standalone-control { position: absolute; display: flex; align-items: center; justify-content: center; font-size: 12px; }
+    .vbx-btn { width: 100%; height: 100%; background: rgba(0, 229, 255, 0.15); color: #00e5ff; border: 1px solid #00e5ff; border-radius: 4px; font-weight: bold; cursor: pointer; transition: background 0.15s; }
+    .vbx-btn:active { background: rgba(0, 229, 255, 0.35); }
+    .vbx-input { width: 100%; height: 100%; background: #0b0f19; color: #00e5ff; border: 1px solid #232d42; padding: 0 6px; border-radius: 3px; font-family: monospace; }
+    .vbx-checkbox-label, .vbx-option-label { display: flex; align-items: center; gap: 6px; cursor: pointer; color: #e2e8f0; width: 100%; }
+    .vbx-fieldset { width: 100%; height: 100%; border: 1px solid #232d42; padding: 6px; border-radius: 3px; }
+    .vbx-fieldset legend { color: #b388ff; padding: 0 4px; font-size: 11px; }
+    .vbx-image-box, .vbx-picture-box { width: 100%; height: 100%; background: rgba(18, 24, 38, 0.8); border: 1px solid #232d42; display: flex; align-items: center; justify-content: center; gap: 6px; color: #b388ff; border-radius: 3px; }
+    .vbx-timer-box { width: 100%; height: 100%; background: rgba(179, 136, 255, 0.1); border: 1px solid #b388ff; display: flex; align-items: center; justify-content: center; gap: 4px; color: #b388ff; border-radius: 3px; }
+    .vbx-select, .vbx-listbox { width: 100%; height: 100%; background: #0b0f19; color: #00e5ff; border: 1px solid #232d42; border-radius: 3px; padding: 2px; }
+    .vbx-progress-track { width: 100%; height: 100%; background: #0b0f19; border: 1px solid #232d42; border-radius: 3px; overflow: hidden; position: relative; }
+    .vbx-progress-fill { height: 100%; background: linear-gradient(90deg, #b388ff, #00e5ff); }
+    .console-toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #121826; border: 1px solid #00e5ff; color: #00e5ff; padding: 10px 20px; border-radius: 20px; font-family: monospace; font-size: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.5); opacity: 0; transition: opacity 0.3s; pointer-events: none; }
+    .console-toast.show { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div class="standalone-window">
+    <div class="titlebar">
+      <span>${form.caption || form.name}</span>
+      <span>×</span>
+    </div>
+    <div class="window-body">
+      ${controlsHTML}
+    </div>
+  </div>
+  <div id="toast" class="console-toast"></div>
+
+  <script>
+    const controlProps = {};
+
+    function updateControlProp(id, prop, value) {
+      if (!controlProps[id]) controlProps[id] = {};
+      controlProps[id][prop] = value;
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById("toast");
+      toast.textContent = msg;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 2500);
+    }
+
+    function triggerEvent(handlerName) {
+      console.log("Trigger event: " + handlerName);
+      const code = ${JSON.stringify(vbxCode)};
+      const lines = code.split("\n");
+
+      let inSub = false;
+      let subLines = [];
+
+      for (let line of lines) {
+        const trimmed = line.trim();
+        if (new RegExp("^Sub\\s+" + handlerName + "\\s*\\(\\)", "i").test(trimmed)) {
+          inSub = true;
+          continue;
+        }
+        if (inSub) {
+          if (/^End\s+Sub$/i.test(trimmed)) {
+            break;
+          }
+          subLines.push(line);
+        }
+      }
+
+      if (subLines.length > 0) {
+        executeSubLines(subLines);
+      } else {
+        showToast("Executed: " + handlerName + "()");
+      }
+    }
+
+    function executeSubLines(lines) {
+      const vars = {};
+      for (let rawLine of lines) {
+        let line = rawLine.trim();
+        if (!line || line.startsWith("'") || line.startsWith("Rem")) continue;
+
+        if (line.toLowerCase().startsWith("print ")) {
+          const expr = line.substring(6).trim();
+          showToast("Print: " + evaluateExpr(expr, vars));
+        } else if (line.toLowerCase().startsWith("msgbox ")) {
+          const expr = line.substring(7).trim();
+          alert(evaluateExpr(expr, vars));
+        } else if (line.toLowerCase().startsWith("dim ")) {
+          const decl = line.substring(4).trim();
+          const eqIdx = decl.indexOf("=");
+          if (eqIdx !== -1) {
+            vars[decl.substring(0, eqIdx).trim()] = evaluateExpr(decl.substring(eqIdx + 1).trim(), vars);
+          } else {
+            vars[decl] = "";
+          }
+        }
+      }
+    }
+
+    function evaluateExpr(expr, vars) {
+      expr = expr.trim();
+      if ((expr.startsWith('"') && expr.endsWith('"')) || (expr.startsWith("'") && expr.endsWith("'"))) {
+        return expr.slice(1, -1);
+      }
+      if (!isNaN(Number(expr))) return Number(expr);
+      if (vars[expr] !== undefined) return vars[expr];
+      if (expr.includes("&")) {
+        return expr.split("&").map(p => evaluateExpr(p, vars)).join("");
+      }
+      return expr;
+    }
+  </script>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlBundle], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${projName}.html`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    logConsole("system", `[VBX Studio] Standalone HTML app exported: ${projName}.html`);
+  }
+
   function resetToolboxToPointer() {
     state.activeTool = "Pointer";
     toolboxItems.forEach((i) => {
@@ -1020,6 +1213,11 @@ MsgBox "Hello from VBX Studio!"`;
     else if (type === "Frame") { width = 160; height = 120; }
     else if (type === "Image") { width = 80; height = 80; }
     else if (type === "Timer") { width = 32; height = 32; }
+    else if (type === "ComboBox") { width = 120; height = 28; }
+    else if (type === "ListBox") { width = 120; height = 80; }
+    else if (type === "OptionButton") { width = 110; height = 24; }
+    else if (type === "ProgressBar") { width = 140; height = 24; }
+    else if (type === "PictureBox") { width = 120; height = 100; }
 
     const newControl = {
       id: name,
@@ -1080,6 +1278,24 @@ MsgBox "Hello from VBX Studio!"`;
   });
 
   // Render Visual Designer Canvas
+  // Double-tap helper for touch/pointer devices
+  let lastTapTime = 0;
+  let lastTapTarget = null;
+
+  function checkDoubleTap(e, targetObj) {
+    const now = Date.now();
+    const timeDiff = now - lastTapTime;
+    if (timeDiff < 300 && lastTapTarget === targetObj) {
+      lastTapTime = 0;
+      lastTapTarget = null;
+      doubleClickControl(targetObj);
+      return true;
+    }
+    lastTapTime = now;
+    lastTapTarget = targetObj;
+    return false;
+  }
+
   function renderDesigner() {
     // Update Form Position and Dimensions
     designerForm.style.left = `${state.form.left}px`;
@@ -1132,6 +1348,17 @@ MsgBox "Hello from VBX Studio!"`;
         ctrlEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg><span>${ctrl.caption || ctrl.name}</span>`;
       } else if (ctrl.type === "Timer") {
         ctrlEl.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><polyline points="12 6 12 16 14"/></svg><span>${ctrl.caption || ctrl.name}</span>`;
+      } else if (ctrl.type === "ComboBox") {
+        ctrlEl.innerHTML = `<span>${ctrl.text !== undefined ? ctrl.text : (ctrl.caption || ctrl.name)}</span><span class="control-type-combobox-arrow">▼</span>`;
+      } else if (ctrl.type === "ListBox") {
+        const itemText = ctrl.text !== undefined ? ctrl.text : (ctrl.caption || ctrl.name);
+        ctrlEl.innerHTML = `<div class="control-type-listbox-item selected">${itemText} Item 1</div><div class="control-type-listbox-item">${itemText} Item 2</div>`;
+      } else if (ctrl.type === "OptionButton") {
+        ctrlEl.innerHTML = `<span class="control-type-option-circle"><span class="control-type-option-circle-dot"></span></span><span>${ctrl.caption || ctrl.name}</span>`;
+      } else if (ctrl.type === "ProgressBar") {
+        ctrlEl.innerHTML = `<div class="control-type-progressbar-fill"></div>`;
+      } else if (ctrl.type === "PictureBox") {
+        ctrlEl.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><polygon points="5,19 10,11 15,16 19,10 21,19"/></svg><span>${ctrl.caption || ctrl.name}</span>`;
       }
 
       // Selection Resize Handles on Control
@@ -1147,13 +1374,18 @@ MsgBox "Hello from VBX Studio!"`;
       }
 
       // Event Listeners on Control
-      ctrlEl.addEventListener("mousedown", (e) => {
+      ctrlEl.addEventListener("pointerdown", (e) => {
         if (e.target.classList.contains("resize-handle")) {
           return;
         }
         e.stopPropagation();
         state.selectedId = ctrl.id;
         renderDesigner();
+
+        if (checkDoubleTap(e, ctrl)) {
+          return;
+        }
+
         initControlDrag(e, ctrl);
       });
 
@@ -1168,7 +1400,7 @@ MsgBox "Hello from VBX Studio!"`;
     renderPropertiesPanel();
   }
 
-  // Form Double Click
+  // Form Double Click and Double Tap
   designerForm.addEventListener("dblclick", (e) => {
     if (e.target === designerForm || formTitlebar.contains(e.target)) {
       e.stopPropagation();
@@ -1176,14 +1408,24 @@ MsgBox "Hello from VBX Studio!"`;
     }
   });
 
+  designerForm.addEventListener("pointerdown", (e) => {
+    if (e.target === designerForm || formTitlebar.contains(e.target)) {
+      if (!e.target.classList.contains("control-box-btn") && !e.target.classList.contains("resize-handle")) {
+        checkDoubleTap(e, state.form);
+      }
+    }
+  });
+
   // Moving Controls
   function initControlDrag(e, ctrl) {
+    const pointerId = e.pointerId;
     const startX = e.clientX;
     const startY = e.clientY;
     const initLeft = ctrl.left;
     const initTop = ctrl.top;
 
-    function onMouseMove(moveEv) {
+    function onPointerMove(moveEv) {
+      if (moveEv.pointerId !== pointerId) return;
       const dx = moveEv.clientX - startX;
       const dy = moveEv.clientY - startY;
       ctrl.left = Math.max(0, snapToGrid(initLeft + dx));
@@ -1197,29 +1439,34 @@ MsgBox "Hello from VBX Studio!"`;
       updatePropertiesInputs();
     }
 
-    function onMouseUp() {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+    function onPointerUp(upEv) {
+      if (upEv.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
       renderDesigner();
     }
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
   }
 
   // Moving Form1 Titlebar Drag
-  formTitlebar.addEventListener("mousedown", (e) => {
+  formTitlebar.addEventListener("pointerdown", (e) => {
     if (e.target.classList.contains("control-box-btn")) return;
     e.stopPropagation();
     state.selectedId = "Form1";
     renderDesigner();
 
+    const pointerId = e.pointerId;
     const startX = e.clientX;
     const startY = e.clientY;
     const initLeft = state.form.left;
     const initTop = state.form.top;
 
-    function onMouseMove(moveEv) {
+    function onPointerMove(moveEv) {
+      if (moveEv.pointerId !== pointerId) return;
       const dx = moveEv.clientX - startX;
       const dy = moveEv.clientY - startY;
       state.form.left = Math.max(0, snapToGrid(initLeft + dx));
@@ -1230,18 +1477,21 @@ MsgBox "Hello from VBX Studio!"`;
       updatePropertiesInputs();
     }
 
-    function onMouseUp() {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+    function onPointerUp(upEv) {
+      if (upEv.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
       renderDesigner();
     }
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
   });
 
   // Resizing Controls and Form via Handles
-  document.addEventListener("mousedown", (e) => {
+  document.addEventListener("pointerdown", (e) => {
     if (!e.target.classList.contains("resize-handle")) return;
     e.stopPropagation();
 
@@ -1260,6 +1510,7 @@ MsgBox "Hello from VBX Studio!"`;
 
     if (!targetObj) return;
 
+    const pointerId = e.pointerId;
     const startX = e.clientX;
     const startY = e.clientY;
     const initLeft = targetObj.left;
@@ -1267,7 +1518,8 @@ MsgBox "Hello from VBX Studio!"`;
     const initWidth = targetObj.width;
     const initHeight = targetObj.height;
 
-    function onMouseMove(moveEv) {
+    function onPointerMove(moveEv) {
+      if (moveEv.pointerId !== pointerId) return;
       const dx = moveEv.clientX - startX;
       const dy = moveEv.clientY - startY;
 
@@ -1319,14 +1571,17 @@ MsgBox "Hello from VBX Studio!"`;
       updatePropertiesInputs();
     }
 
-    function onMouseUp() {
-      document.removeEventListener("mousemove", onMouseMove);
-      document.removeEventListener("mouseup", onMouseUp);
+    function onPointerUp(upEv) {
+      if (upEv.pointerId !== pointerId) return;
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
       renderDesigner();
     }
 
-    document.addEventListener("mousemove", onMouseMove);
-    document.addEventListener("mouseup", onMouseUp);
+    document.addEventListener("pointermove", onPointerMove);
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
   });
 
   // Delete key handler for selected control

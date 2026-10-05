@@ -276,6 +276,16 @@ func mapVB6ControlType(vbType string) string {
 		return "Image"
 	case "VB.Timer":
 		return "Timer"
+	case "VB.ComboBox":
+		return "ComboBox"
+	case "VB.ListBox":
+		return "ListBox"
+	case "VB.OptionButton":
+		return "OptionButton"
+	case "VB.PictureBox":
+		return "PictureBox"
+	case "MSComctlLib.ProgBar", "VB.ProgressBar":
+		return "ProgressBar"
 	default:
 		if strings.HasPrefix(vbType, "VB.") {
 			return strings.TrimPrefix(vbType, "VB.")

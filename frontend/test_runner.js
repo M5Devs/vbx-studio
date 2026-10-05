@@ -152,6 +152,55 @@ assert.strictEqual(importedProj.controls[0].left, 100);
 assert.strictEqual(importedProj.controls[0].top, 100);
 console.log("✓ Client VB6 Importer tests passed");
 
+// Test 4: Extended Controls Import
+const extProj = env.parseVB6ClientSide(`VERSION 5.00
+Begin VB.Form Form1
+   Caption         =   "Extended Controls Form"
+   ClientHeight    =   6000
+   ClientWidth     =   8000
+   Begin VB.ComboBox Combo1
+      Height          =   315
+      Left            =   1000
+      Top             =   1000
+      Width           =   1500
+   End
+   Begin VB.ListBox List1
+      Height          =   800
+      Left            =   1000
+      Top             =   1500
+      Width           =   1500
+   End
+   Begin VB.OptionButton Option1
+      Caption         =   "Option 1"
+      Height          =   250
+      Left            =   1000
+      Top             =   2500
+      Width           =   1200
+   End
+   Begin MSComctlLib.ProgBar ProgressBar1
+      Height          =   250
+      Left            =   1000
+      Top             =   3000
+      Width           =   2000
+   End
+   Begin VB.PictureBox Picture1
+      Height          =   1000
+      Left            =   1000
+      Top             =   3500
+      Width           =   1500
+   End
+End
+`, "Form1.frm");
+
+assert.strictEqual(extProj.controls.length, 5);
+assert.strictEqual(extProj.controls[0].type, "ComboBox");
+assert.strictEqual(extProj.controls[1].type, "ListBox");
+assert.strictEqual(extProj.controls[2].type, "OptionButton");
+assert.strictEqual(extProj.controls[3].type, "ProgressBar");
+assert.strictEqual(extProj.controls[4].type, "PictureBox");
+console.log("✓ Extended VB controls import tests passed");
+
+
 testInterpreter().then(() => {
   console.log("All Frontend Automated Tests Passed Successfully!");
 });
