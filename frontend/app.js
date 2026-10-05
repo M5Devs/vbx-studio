@@ -80,6 +80,13 @@ MsgBox "Hello from VBX Studio!"`;
   // Client-Side JS VBX Interpreter for Static Hosting (e.g. GitHub Pages)
   let abortRequested = false;
 
+  function isStaticHosting() {
+    if (typeof window === "undefined" || !window.location) return false;
+    const hostname = window.location.hostname || "";
+    const protocol = window.location.protocol || "";
+    return protocol === "file:" || hostname.endsWith("github.io") || hostname.endsWith("github.dev");
+  }
+
   function evaluateJSExpr(expr, vars = {}) {
     expr = expr.trim();
     if (!expr) return "";
@@ -152,6 +159,82 @@ MsgBox "Hello from VBX Studio!"`;
     return parts;
   }
 
+  async function executeSingleVBXLine(line, vars, log) {
+    if (!line || line.startsWith("'") || line.toLowerCase().startsWith("rem ")) return;
+
+    if (/^(Sub|Function|End Sub|End Function)\b/i.test(line)) {
+      return;
+    }
+
+    if (/^Print(\s+.*)?$/i.test(line)) {
+      const expr = line.replace(/^Print\s*/i, "");
+      const val = expr ? evaluateJSExpr(expr, vars) : "";
+      log(String(val), "stdout");
+      await new Promise((r) => setTimeout(r, 10));
+      return;
+    }
+
+    if (/^MsgBox(\s+.*)?$/i.test(line)) {
+      const expr = line.replace(/^MsgBox\s*/i, "");
+      const val = expr ? evaluateJSExpr(expr, vars) : "";
+      log("[Dialog MsgBox] " + val, "stdout");
+      if (typeof window !== "undefined" && typeof window.alert === "function") {
+        try { window.alert(String(val)); } catch (e) {}
+      }
+      await new Promise((r) => setTimeout(r, 10));
+      return;
+    }
+
+    // InputBox command: InputBox "Prompt", "Title", "Default" or variable assignment x = InputBox(...)
+    const inputBoxMatch = line.match(/^(?:(?:Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*)?InputBox\s*\((.*)\)$/i) ||
+                          line.match(/^(?:(?:Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*)?InputBox\s+(.+)$/i);
+    if (inputBoxMatch) {
+      const targetVar = inputBoxMatch[1];
+      const argsStr = inputBoxMatch[2];
+      const args = splitByOp(argsStr, ",").map((a) => evaluateJSExpr(a.trim(), vars));
+      const promptText = args[0] !== undefined ? String(args[0]) : "";
+      const defaultVal = args[2] !== undefined ? String(args[2]) : "";
+
+      let result = "";
+      if (typeof window !== "undefined" && typeof window.prompt === "function") {
+        const userInput = window.prompt(promptText, defaultVal);
+        result = userInput !== null ? userInput : "";
+      } else {
+        result = defaultVal;
+      }
+
+      log("[InputBox] " + promptText + " -> " + result, "system");
+      if (targetVar) {
+        vars[targetVar] = result;
+      }
+      await new Promise((r) => setTimeout(r, 10));
+      return;
+    }
+
+    if (/^Dim\s+/i.test(line)) {
+      const decl = line.replace(/^Dim\s+/i, "").trim();
+      const eqIdx = decl.indexOf("=");
+      if (eqIdx !== -1) {
+        const varName = decl.slice(0, eqIdx).trim();
+        const expr = decl.slice(eqIdx + 1).trim();
+        vars[varName] = evaluateJSExpr(expr, vars);
+      } else {
+        vars[decl] = "";
+      }
+      return;
+    }
+
+    const assignIdx = line.indexOf("=");
+    if (assignIdx !== -1 && !line.toLowerCase().startsWith("if ")) {
+      const varName = line.slice(0, assignIdx).trim();
+      const expr = line.slice(assignIdx + 1).trim();
+      vars[varName] = evaluateJSExpr(expr, vars);
+      return;
+    }
+
+    log("Syntax or unknown statement: " + line, "stderr");
+  }
+
   async function runClientSideVBX(code) {
     abortRequested = false;
     const lines = code.split("\n");
@@ -195,24 +278,6 @@ MsgBox "Hello from VBX Studio!"`;
         continue;
       }
 
-      if (/^Print\s+/i.test(line)) {
-        const expr = line.replace(/^Print\s+/i, "");
-        const val = evaluateJSExpr(expr, vars);
-        log(String(val), "stdout");
-        await new Promise((r) => setTimeout(r, 10));
-        ip++;
-        continue;
-      }
-
-      if (/^MsgBox\s+/i.test(line)) {
-        const expr = line.replace(/^MsgBox\s+/i, "");
-        const val = evaluateJSExpr(expr, vars);
-        log("[Dialog MsgBox] " + val, "stdout");
-        await new Promise((r) => setTimeout(r, 10));
-        ip++;
-        continue;
-      }
-
       // For loop
       const forMatch = line.match(/^For\s+([a-zA-Z0-9_]+)\s*=\s*(.+?)\s+To\s+(.+?)(?:\s+Step\s+(.+?))?$/i);
       if (forMatch) {
@@ -249,17 +314,7 @@ MsgBox "Hello from VBX Studio!"`;
               setRunningState(false);
               return;
             }
-            const bl = bodyLine.trim();
-            if (!bl || bl.startsWith("'") || bl.toLowerCase().startsWith("rem ")) continue;
-            if (/^Print\s+/i.test(bl)) {
-              log(String(evaluateJSExpr(bl.replace(/^Print\s+/i, ""), vars)), "stdout");
-            } else if (/^MsgBox\s+/i.test(bl)) {
-              log("[Dialog MsgBox] " + evaluateJSExpr(bl.replace(/^MsgBox\s+/i, ""), vars), "stdout");
-            } else if (/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i.test(bl)) {
-              const m = bl.match(/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i);
-              vars[m[2]] = evaluateJSExpr(m[3], vars);
-            }
-            await new Promise((r) => setTimeout(r, 5));
+            await executeSingleVBXLine(bodyLine.trim(), vars, log);
           }
           vars[varName] += stepVal;
         }
@@ -312,17 +367,7 @@ MsgBox "Hello from VBX Studio!"`;
               setRunningState(false);
               return;
             }
-            const bl = bodyLine.trim();
-            if (!bl || bl.startsWith("'") || bl.toLowerCase().startsWith("rem ")) continue;
-            if (/^Print\s+/i.test(bl)) {
-              log(String(evaluateJSExpr(bl.replace(/^Print\s+/i, ""), vars)), "stdout");
-            } else if (/^MsgBox\s+/i.test(bl)) {
-              log("[Dialog MsgBox] " + evaluateJSExpr(bl.replace(/^MsgBox\s+/i, ""), vars), "stdout");
-            } else if (/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i.test(bl)) {
-              const m = bl.match(/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i);
-              vars[m[2]] = evaluateJSExpr(m[3], vars);
-            }
-            await new Promise((r) => setTimeout(r, 5));
+            await executeSingleVBXLine(bodyLine.trim(), vars, log);
           }
         }
 
@@ -367,17 +412,7 @@ MsgBox "Hello from VBX Studio!"`;
               setRunningState(false);
               return;
             }
-            const bl = bodyLine.trim();
-            if (!bl || bl.startsWith("'") || bl.toLowerCase().startsWith("rem ")) continue;
-            if (/^Print\s+/i.test(bl)) {
-              log(String(evaluateJSExpr(bl.replace(/^Print\s+/i, ""), vars)), "stdout");
-            } else if (/^MsgBox\s+/i.test(bl)) {
-              log("[Dialog MsgBox] " + evaluateJSExpr(bl.replace(/^MsgBox\s+/i, ""), vars), "stdout");
-            } else if (/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i.test(bl)) {
-              const m = bl.match(/^(Dim\s+)?([a-zA-Z0-9_]+)\s*=\s*(.+)$/i);
-              vars[m[2]] = evaluateJSExpr(m[3], vars);
-            }
-            await new Promise((r) => setTimeout(r, 5));
+            await executeSingleVBXLine(bodyLine.trim(), vars, log);
           }
         }
 
@@ -385,30 +420,7 @@ MsgBox "Hello from VBX Studio!"`;
         continue;
       }
 
-      if (/^Dim\s+/i.test(line)) {
-        const decl = line.replace(/^Dim\s+/i, "").trim();
-        const eqIdx = decl.indexOf("=");
-        if (eqIdx !== -1) {
-          const varName = decl.slice(0, eqIdx).trim();
-          const expr = decl.slice(eqIdx + 1).trim();
-          vars[varName] = evaluateJSExpr(expr, vars);
-        } else {
-          vars[decl] = "";
-        }
-        ip++;
-        continue;
-      }
-
-      const assignIdx = line.indexOf("=");
-      if (assignIdx !== -1 && !line.toLowerCase().startsWith("if ")) {
-        const varName = line.slice(0, assignIdx).trim();
-        const expr = line.slice(assignIdx + 1).trim();
-        vars[varName] = evaluateJSExpr(expr, vars);
-        ip++;
-        continue;
-      }
-
-      log("Line " + (ip + 1) + ": Syntax or unknown statement: " + line, "stderr");
+      await executeSingleVBXLine(line, vars, log);
       ip++;
     }
 
@@ -714,6 +726,8 @@ MsgBox "Hello from VBX Studio!"`;
     btnStop.disabled = !running;
   }
 
+
+
   // Handle Run
   btnRun.addEventListener("click", async () => {
     if (isRunning) return;
@@ -721,6 +735,11 @@ MsgBox "Hello from VBX Studio!"`;
 
     const code = editor.getValue();
     appendConsoleLine("[VBX Studio] Starting execution...", "system");
+
+    if (isStaticHosting()) {
+      runClientSideVBX(code);
+      return;
+    }
 
     try {
       const response = await fetch("/api/run", {
@@ -730,12 +749,17 @@ MsgBox "Hello from VBX Studio!"`;
       });
 
       if (!response.ok) {
-        const errText = await response.text();
-        appendConsoleLine(`[Error] Execution failed: ${errText}`, "stderr");
-        setRunningState(false);
+        if (response.status === 405) {
+          // GitHub Pages or static host returning Method Not Allowed for POST -> fallback cleanly to client-side
+          runClientSideVBX(code);
+        } else {
+          const errText = await response.text();
+          appendConsoleLine(`[Error] Execution failed: ${errText}`, "stderr");
+          setRunningState(false);
+        }
       }
     } catch (err) {
-      // Backend unavailable or static hosting (e.g., GitHub Pages) -> Fallback to client-side JS runner
+      // Backend unavailable or network error -> Fallback to client-side JS runner
       runClientSideVBX(code);
     }
   });
