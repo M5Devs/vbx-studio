@@ -9,7 +9,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/codemirror.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.13/theme/dracula.min.css">
 </head>
-<body>
+<body class="theme-classic">
   <div class="app-container">
     <!-- Top Header & Toolbar -->
     <header class="top-header">
@@ -29,6 +29,13 @@
           </div>
           <div class="menu-item" id="menu-edit">Edit</div>
           <div class="menu-item" id="menu-project">Project</div>
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-theme">Theme</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="theme-classic">Classic VB6 (1998)</div>
+              <div class="dropdown-item" id="theme-cyberpunk">Cyberpunk (2026)</div>
+            </div>
+          </div>
           <div class="menu-item" id="menu-help">Help</div>
         </nav>
       </div>
@@ -222,23 +229,49 @@
         </div>
       </section>
 
-      <!-- Right Pane: Properties Panel -->
+      <!-- Right Pane: Split into Project Explorer & Properties Window -->
       <aside class="panel pane-right">
-        <div class="panel-header">
-          <span class="panel-title" id="properties-panel-title">Properties - Form1</span>
-        </div>
-        <div class="properties-container">
-          <table class="properties-table">
-            <thead>
-              <tr>
-                <th>Property</th>
-                <th>Value</th>
-              </tr>
-            </thead>
-            <tbody id="properties-body">
+        <!-- Top Tier: Project Explorer -->
+        <div class="subpanel pane-right-top" id="project-explorer-panel">
+          <div class="panel-header">
+            <span class="panel-title" id="project-explorer-title">Project - Project1</span>
+          </div>
+          <div class="project-explorer-container">
+            <div class="tree-view" id="project-tree">
               <!-- Rendered dynamically -->
-            </tbody>
-          </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="pane-splitter-v"></div>
+
+        <!-- Bottom Tier: Properties Panel -->
+        <div class="subpanel pane-right-bottom" id="properties-panel">
+          <div class="panel-header">
+            <span class="panel-title" id="properties-panel-title">Properties - Form1</span>
+          </div>
+          <div class="properties-toolbar">
+            <select class="properties-object-select" id="prop-object-select">
+              <!-- Rendered dynamically -->
+            </select>
+            <div class="properties-tabs">
+              <button class="prop-tab-btn active" id="prop-tab-alphabetic" title="Alphabetic">Alphabetic</button>
+              <button class="prop-tab-btn" id="prop-tab-categorized" title="Categorized">Categorized</button>
+            </div>
+          </div>
+          <div class="properties-container">
+            <table class="properties-table">
+              <thead>
+                <tr>
+                  <th>Property</th>
+                  <th>Value</th>
+                </tr>
+              </thead>
+              <tbody id="properties-body">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
         </div>
       </aside>
     </main>
