@@ -45,9 +45,22 @@ MsgBox "Hello from VBX Studio!"`;
 
   let isRunning = false;
 
+  function sanitizeProjectFilename(fileName, defaultProjName = "Project1") {
+    if (!fileName || typeof fileName !== "string") fileName = defaultProjName + ".vbxp";
+    fileName = fileName.trim();
+    while (fileName.toLowerCase().endsWith(".json")) {
+      fileName = fileName.slice(0, -5);
+    }
+    if (!fileName.toLowerCase().endsWith(".vbxp")) {
+      fileName += ".vbxp";
+    }
+    return fileName;
+  }
+
   // Visual Designer State
   const GRID_SIZE = 8;
   const state = {
+    projectName: "Project1",
     form: {
       id: "Form1",
       name: "Form1",
@@ -489,7 +502,7 @@ MsgBox "Hello from VBX Studio!"`;
     const proj = {
       version: "1.0",
       projectName: projName,
-      form: {
+    form: {
         name: "Form1",
         caption: "Form1",
         width: 600,
@@ -627,7 +640,7 @@ MsgBox "Hello from VBX Studio!"`;
     return {
       version: "1.0",
       projectName: projName,
-      form: {
+    form: {
         name: "Form1",
         caption: projName,
         width: 600,
@@ -656,7 +669,7 @@ MsgBox "Hello from VBX Studio!"`;
     return {
       version: "1.0",
       projectName: projName,
-      form: {
+    form: {
         name: "Form1",
         caption: projName,
         width: 600,
@@ -718,6 +731,24 @@ MsgBox "Hello from VBX Studio!"`;
     div.textContent = text;
     consoleOutput.appendChild(div);
     consoleOutput.scrollTop = consoleOutput.scrollHeight;
+  }
+
+  function updateCoordinateMonitor() {
+    const posText = document.getElementById("coord-pos-text");
+    const sizeText = document.getElementById("coord-size-text");
+    if (!posText || !sizeText) return;
+
+    const item = getSelectedItem();
+    if (item) {
+      posText.textContent = `${item.left}, ${item.top}`;
+      sizeText.textContent = `${item.width}, ${item.height}`;
+    }
+  }
+
+  function updateHeaderIndicator(fileName) {
+    const sanitized = sanitizeProjectFilename(fileName || currentFilename.textContent, state.projectName || "Project1");
+    const activeForm = state.form ? (state.form.name || "Form1") : "Form1";
+    currentFilename.textContent = `${sanitized} - ${activeForm}`;
   }
 
   function setRunningState(running) {
@@ -786,13 +817,14 @@ MsgBox "Hello from VBX Studio!"`;
   // Save Project (.vbxp)
   async function saveProject() {
     const code = editor.getValue();
-    const projectName = state.form.name || "Project1";
-    const fileName = `${projectName}.vbxp`;
+    const projectName = state.projectName || state.form.name || "Project1";
+    state.projectName = projectName;
+    const fileName = sanitizeProjectFilename(`${projectName}.vbxp`, projectName);
 
     const projectData = {
       version: "1.0",
       projectName: projectName,
-      form: {
+    form: {
         name: state.form.name || "Form1",
         caption: state.form.caption || state.form.name || "Form1",
         width: state.form.width || 600,
@@ -838,12 +870,20 @@ MsgBox "Hello from VBX Studio!"`;
       // Ignore network errors in static host / offline mode
     }
 
-    currentFilename.textContent = fileName;
+    updateHeaderIndicator(fileName);
   }
 
   // Load / Open Project (.vbxp)
   function loadProject(project, fileName) {
     if (!project) return;
+
+    if (project.projectName) {
+      state.projectName = project.projectName;
+    } else if (fileName) {
+      state.projectName = fileName.replace(/\.[^/.]+$/, "").replace(/\.vbxp$/i, "");
+    } else {
+      state.projectName = "Project1";
+    }
 
     if (project.form) {
       state.form.name = project.form.name || "Form1";
@@ -890,8 +930,9 @@ MsgBox "Hello from VBX Studio!"`;
     }
 
     state.selectedId = "Form1";
-    const displayFile = fileName || (project.projectName ? `${project.projectName}.vbxp` : "project.vbxp");
-    currentFilename.textContent = displayFile;
+    const rawFile = fileName || (project.projectName ? `${project.projectName}.vbxp` : "Project1.vbxp");
+    const displayFile = sanitizeProjectFilename(rawFile, state.projectName);
+    updateHeaderIndicator(displayFile);
 
     // Switch to Design View to immediately show restored visual form
     tabDesign.click();
@@ -1321,6 +1362,8 @@ MsgBox "Hello from VBX Studio!"`;
   }
 
   function renderDesigner() {
+    if (typeof updateHeaderIndicator === "function") updateHeaderIndicator();
+    if (typeof updateCoordinateMonitor === "function") updateCoordinateMonitor();
     if (typeof renderProjectExplorer === "function") renderProjectExplorer();
     if (typeof updatePropObjectSelect === "function") updatePropObjectSelect();
     // Update Form Position and Dimensions
@@ -1731,6 +1774,7 @@ MsgBox "Hello from VBX Studio!"`;
   }
 
   function updatePropertiesInputs() {
+    if (typeof updateCoordinateMonitor === "function") updateCoordinateMonitor();
     const item = getSelectedItem();
     const inputs = propertiesBody.querySelectorAll("input, select");
     inputs.forEach((input) => {
@@ -1826,6 +1870,50 @@ MsgBox "Hello from VBX Studio!"`;
     }
   });
 
+
+
+  // Panel Toggles
+  const tbToggleProject = document.getElementById("tb-toggle-project");
+  const tbToggleProperties = document.getElementById("tb-toggle-properties");
+  const tbToggleToolbox = document.getElementById("tb-toggle-toolbox");
+  const tbToggleConsole = document.getElementById("tb-toggle-console");
+
+  const paneLeft = document.querySelector(".pane-left");
+  const paneRightTop = document.getElementById("project-explorer-panel");
+  const paneRightBottom = document.getElementById("properties-panel");
+  const paneBottom = document.querySelector(".pane-bottom");
+
+  if (tbToggleProject && paneRightTop) {
+    tbToggleProject.addEventListener("click", () => {
+      const isHidden = paneRightTop.style.display === "none";
+      paneRightTop.style.display = isHidden ? "flex" : "none";
+      tbToggleProject.classList.toggle("active", isHidden);
+    });
+  }
+
+  if (tbToggleProperties && paneRightBottom) {
+    tbToggleProperties.addEventListener("click", () => {
+      const isHidden = paneRightBottom.style.display === "none";
+      paneRightBottom.style.display = isHidden ? "flex" : "none";
+      tbToggleProperties.classList.toggle("active", isHidden);
+    });
+  }
+
+  if (tbToggleToolbox && paneLeft) {
+    tbToggleToolbox.addEventListener("click", () => {
+      const isHidden = paneLeft.style.display === "none";
+      paneLeft.style.display = isHidden ? "flex" : "none";
+      tbToggleToolbox.classList.toggle("active", isHidden);
+    });
+  }
+
+  if (tbToggleConsole && paneBottom) {
+    tbToggleConsole.addEventListener("click", () => {
+      const isHidden = paneBottom.style.display === "none";
+      paneBottom.style.display = isHidden ? "flex" : "none";
+      tbToggleConsole.classList.toggle("active", isHidden);
+    });
+  }
 
   // Theme Switcher Management
   const themeClassicBtn = document.getElementById("theme-classic");

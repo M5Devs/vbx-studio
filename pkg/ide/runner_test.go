@@ -196,3 +196,36 @@ func TestServer_ProjectSaveAndOpen(t *testing.T) {
 		t.Errorf("expected project controls to contain 'Button1', got %s", bodyStr)
 	}
 }
+
+
+func TestServer_ProjectSanitization(t *testing.T) {
+	tempDir, err := os.MkdirTemp("", "vbx_sanitization_test")
+	if err != nil {
+		t.Fatalf("failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tempDir)
+
+	server := NewServer(tempDir)
+	mux := http.NewServeMux()
+	server.RegisterHandlers(mux)
+
+	// Test saving with .vbxp.json path -> must sanitize to .vbxp
+	rawFilePath := filepath.Join(tempDir, "Project1.vbxp.json")
+	projectJSON := `{"version":"1.0","projectName":"Project1","form":{"name":"Form1","caption":"Form1","width":600,"height":400},"controls":[],"code":""}`
+	savePayload := `{"filePath":"` + strings.ReplaceAll(rawFilePath, "\\", "\\\\") + `", "project":` + projectJSON + `}`
+
+	req := httptest.NewRequest(http.MethodPost, "/api/project/save", strings.NewReader(savePayload))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+
+	mux.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected status 200 on project save, got %d: %s", w.Code, w.Body.String())
+	}
+
+	sanitizedPath := filepath.Join(tempDir, "Project1.vbxp")
+	if _, err := os.Stat(sanitizedPath); os.IsNotExist(err) {
+		t.Errorf("expected sanitized project file to exist at %s", sanitizedPath)
+	}
+}

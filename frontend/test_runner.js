@@ -29,6 +29,7 @@ const mockDocument = {
   createElement: () => createMockElement(),
   getElementById: (id) => createMockElement(id),
   querySelectorAll: () => [],
+  querySelector: () => createMockElement(),
   activeElement: createMockElement(),
   body: createMockElement("body"),
   addEventListener: (event, cb) => {
@@ -218,6 +219,26 @@ assert.strictEqual(extProj.controls[3].type, "ProgressBar");
 assert.strictEqual(extProj.controls[4].type, "PictureBox");
 console.log("✓ Extended VB controls import tests passed");
 
+
+
+// Test 5: Filename Sanitization Logic
+function sanitizeProjectFilename(fileName, defaultProjName = "Project1") {
+  if (!fileName || typeof fileName !== "string") fileName = defaultProjName + ".vbxp";
+  fileName = fileName.trim();
+  while (fileName.toLowerCase().endsWith(".json")) {
+    fileName = fileName.slice(0, -5);
+  }
+  if (!fileName.toLowerCase().endsWith(".vbxp")) {
+    fileName += ".vbxp";
+  }
+  return fileName;
+}
+
+assert.strictEqual(sanitizeProjectFilename("Project1.vbxp.json"), "Project1.vbxp");
+assert.strictEqual(sanitizeProjectFilename("my_app.json"), "my_app.vbxp");
+assert.strictEqual(sanitizeProjectFilename("TestProj"), "TestProj.vbxp");
+assert.strictEqual(sanitizeProjectFilename("Demo.VBXP"), "Demo.VBXP");
+console.log("✓ Filename sanitization tests passed");
 
 testInterpreter().then(() => {
   console.log("All Frontend Automated Tests Passed Successfully!");

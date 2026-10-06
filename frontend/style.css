@@ -1282,3 +1282,79 @@ body.theme-cyberpunk .line-stderr {
 body.theme-cyberpunk .line-system {
   color: var(--accent-purple);
 }
+
+
+/* Rebar Grip Handle (Classic 3D vertical ridges) */
+.rebar-grip {
+  width: 6px;
+  height: 20px;
+  margin: 0 4px 0 2px;
+  border-left: 2px solid #ffffff;
+  border-right: 2px solid #808080;
+  box-shadow: inset 1px 0 0 #808080, 1px 0 0 #ffffff;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+body.theme-cyberpunk .rebar-grip {
+  border-left: 2px solid var(--accent-cyan);
+  border-right: 2px solid var(--border-flat);
+  box-shadow: none;
+}
+
+.tb-btn {
+  padding: 3px 5px;
+  min-width: 26px;
+  height: 24px;
+  justify-content: center;
+}
+
+.tb-btn.active {
+  border-top: 2px solid #808080;
+  border-left: 2px solid #808080;
+  border-right: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
+  background-color: #e0e0e0;
+}
+
+body.theme-cyberpunk .tb-btn.active {
+  border-color: var(--accent-cyan);
+  background-color: var(--bg-hover);
+  color: var(--accent-cyan);
+}
+
+/* Toolbar Right Group & Live Coordinate Monitors */
+.toolbar-right-group {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coord-box {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-main);
+  padding: 2px 6px;
+  min-width: 80px;
+  height: 22px;
+  background-color: var(--bg-inset);
+  border-top: 1px solid #808080;
+  border-left: 1px solid #808080;
+  border-right: 1px solid #ffffff;
+  border-bottom: 1px solid #ffffff;
+}
+
+body.theme-cyberpunk .coord-box {
+  background-color: var(--bg-dark);
+  border: 1px solid var(--border-flat);
+  color: var(--accent-cyan);
+}
+
+.coord-icon {
+  font-size: 10px;
+  opacity: 0.8;
+}
