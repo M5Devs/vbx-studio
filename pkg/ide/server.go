@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -231,6 +232,23 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func sanitizeProjectFilePath(pathStr, projName string) string {
+	pathStr = strings.TrimSpace(pathStr)
+	if pathStr == "" {
+		if projName == "" {
+			projName = "Project1"
+		}
+		pathStr = projName + ".vbxp"
+	}
+	for strings.HasSuffix(strings.ToLower(pathStr), ".json") {
+		pathStr = pathStr[:len(pathStr)-len(".json")]
+	}
+	if !strings.HasSuffix(strings.ToLower(pathStr), ".vbxp") {
+		pathStr += ".vbxp"
+	}
+	return pathStr
+}
+
 func (s *Server) handleProjectSave(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -246,12 +264,10 @@ func (s *Server) handleProjectSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.FilePath == "" {
-		if req.Project.ProjectName != "" {
-			req.FilePath = req.Project.ProjectName + ".vbxp"
-		} else {
-			req.FilePath = "project.vbxp"
-		}
+	req.FilePath = sanitizeProjectFilePath(req.FilePath, req.Project.ProjectName)
+	if req.Project.ProjectName == "" {
+		base := filepath.Base(req.FilePath)
+		req.Project.ProjectName = strings.TrimSuffix(base, ".vbxp")
 	}
 
 	data, err := json.MarshalIndent(req.Project, "", "  ")
@@ -280,9 +296,7 @@ func (s *Server) handleProjectOpen(w http.ResponseWriter, r *http.Request) {
 	}
 
 	filePath := r.URL.Query().Get("filePath")
-	if filePath == "" {
-		filePath = "project.vbxp"
-	}
+	filePath = sanitizeProjectFilePath(filePath, "Project1")
 
 	content, err := os.ReadFile(filePath)
 	if err != nil {
