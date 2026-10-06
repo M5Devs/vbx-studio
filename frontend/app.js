@@ -1321,6 +1321,8 @@ MsgBox "Hello from VBX Studio!"`;
   }
 
   function renderDesigner() {
+    if (typeof renderProjectExplorer === "function") renderProjectExplorer();
+    if (typeof updatePropObjectSelect === "function") updatePropObjectSelect();
     // Update Form Position and Dimensions
     designerForm.style.left = `${state.form.left}px`;
     designerForm.style.top = `${state.form.top}px`;
@@ -1823,6 +1825,140 @@ MsgBox "Hello from VBX Studio!"`;
       btnSave.click();
     }
   });
+
+
+  // Theme Switcher Management
+  const themeClassicBtn = document.getElementById("theme-classic");
+  const themeCyberpunkBtn = document.getElementById("theme-cyberpunk");
+
+  function applyTheme(themeName) {
+    if (themeName === "theme-cyberpunk") {
+      document.body.classList.remove("theme-classic");
+      document.body.classList.add("theme-cyberpunk");
+      if (typeof editor !== "undefined" && editor.setOption) editor.setOption("theme", "dracula");
+      if (typeof localStorage !== "undefined") localStorage.setItem("vbx-theme", "theme-cyberpunk");
+    } else {
+      document.body.classList.remove("theme-cyberpunk");
+      document.body.classList.add("theme-classic");
+      if (typeof editor !== "undefined" && editor.setOption) editor.setOption("theme", "default");
+      if (typeof localStorage !== "undefined") localStorage.setItem("vbx-theme", "theme-classic");
+    }
+  }
+
+  const savedTheme = (typeof localStorage !== "undefined" && localStorage.getItem("vbx-theme")) || "theme-classic";
+  applyTheme(savedTheme);
+
+  if (themeClassicBtn) {
+    themeClassicBtn.addEventListener("click", () => applyTheme("theme-classic"));
+  }
+  if (themeCyberpunkBtn) {
+    themeCyberpunkBtn.addEventListener("click", () => applyTheme("theme-cyberpunk"));
+  }
+
+
+  // Project Explorer & Properties Enhancement
+  const projectExplorerTitle = document.getElementById("project-explorer-title");
+  const projectTree = document.getElementById("project-tree");
+  const propObjectSelect = document.getElementById("prop-object-select");
+  const propTabAlphabetic = document.getElementById("prop-tab-alphabetic");
+  const propTabCategorized = document.getElementById("prop-tab-categorized");
+
+  let activePropTab = "alphabetic"; // "alphabetic" or "categorized"
+
+  if (propTabAlphabetic && propTabCategorized) {
+    propTabAlphabetic.addEventListener("click", () => {
+      activePropTab = "alphabetic";
+      propTabAlphabetic.classList.add("active");
+      propTabCategorized.classList.remove("active");
+      renderPropertiesPanel();
+    });
+    propTabCategorized.addEventListener("click", () => {
+      activePropTab = "categorized";
+      propTabCategorized.classList.add("active");
+      propTabAlphabetic.classList.remove("active");
+      renderPropertiesPanel();
+    });
+  }
+
+  if (propObjectSelect) {
+    propObjectSelect.addEventListener("change", (e) => {
+      state.selectedId = e.target.value;
+      renderDesigner();
+    });
+  }
+
+  function renderProjectExplorer() {
+    if (!projectTree) return;
+    const projName = state.projectName || "Project1";
+    if (projectExplorerTitle) {
+      projectExplorerTitle.textContent = "Project - " + projName;
+    }
+
+    projectTree.innerHTML = "";
+
+    // Root Node: Project
+    const rootNode = document.createElement("div");
+    rootNode.className = "tree-node";
+    rootNode.innerHTML = `<span class="tree-icon">📁</span> <strong>${projName} (${projName}.vbxp)</strong>`;
+
+    const formsFolder = document.createElement("div");
+    formsFolder.className = "tree-children";
+
+    const folderNode = document.createElement("div");
+    folderNode.className = "tree-node";
+    folderNode.innerHTML = `<span class="tree-icon">📁</span> Forms`;
+
+    const formChildren = document.createElement("div");
+    formChildren.className = "tree-children";
+
+    const formNode = document.createElement("div");
+    const isSelected = state.selectedId === "Form1";
+    formNode.className = "tree-node " + (isSelected ? "selected" : "");
+    const formName = state.form.name || "Form1";
+    formNode.innerHTML = `<span class="tree-icon">📄</span> ${formName} (${formName}.frm)`;
+
+    formNode.addEventListener("click", (e) => {
+      e.stopPropagation();
+      state.selectedId = "Form1";
+      renderDesigner();
+    });
+
+    formNode.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      state.selectedId = "Form1";
+      renderDesigner();
+      tabDesign.click();
+    });
+
+    formChildren.appendChild(formNode);
+    folderNode.appendChild(formChildren);
+    formsFolder.appendChild(folderNode);
+
+    projectTree.appendChild(rootNode);
+    projectTree.appendChild(formsFolder);
+  }
+
+  function updatePropObjectSelect() {
+    if (!propObjectSelect) return;
+    propObjectSelect.innerHTML = "";
+
+    // Form Object
+    const formOpt = document.createElement("option");
+    formOpt.value = "Form1";
+    formOpt.textContent = state.form.name + " Form";
+    if (state.selectedId === "Form1") formOpt.selected = true;
+    propObjectSelect.appendChild(formOpt);
+
+    // Control Objects
+    state.controls.forEach((ctrl) => {
+      const opt = document.createElement("option");
+      opt.value = ctrl.id;
+      const typeLabel = ctrl.type === "Button" ? "CommandButton" : ctrl.type;
+      opt.textContent = ctrl.name + " " + typeLabel;
+      if (state.selectedId === ctrl.id) opt.selected = true;
+      propObjectSelect.appendChild(opt);
+    });
+  }
 
   // Initial Designer Render
   renderDesigner();

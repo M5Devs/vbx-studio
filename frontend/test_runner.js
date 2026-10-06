@@ -70,6 +70,12 @@ const sandbox = {
   URL: { createObjectURL: () => "blob:test", revokeObjectURL: () => {} },
   Blob: class {},
   FileReader: class {},
+  localStorage: {
+    _data: {},
+    getItem: function(k) { return this._data[k] || null; },
+    setItem: function(k, v) { this._data[k] = String(v); },
+    removeItem: function(k) { delete this._data[k]; }
+  },
   window: {
     location: { hostname: "username.github.io", protocol: "https:" },
     alert: (msg) => { sandbox._testEnv.lastAlert = msg; },
