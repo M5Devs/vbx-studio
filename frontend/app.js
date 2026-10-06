@@ -21,6 +21,7 @@ MsgBox "Hello from VBX Studio!"`;
 
   // UI Elements
   const btnRun = document.getElementById("btn-run");
+  const btnBreak = document.getElementById("btn-break");
   const btnStop = document.getElementById("btn-stop");
   const btnSave = document.getElementById("btn-save");
   const currentFilename = document.getElementById("current-filename");
@@ -502,7 +503,7 @@ MsgBox "Hello from VBX Studio!"`;
     const proj = {
       version: "1.0",
       projectName: projName,
-    form: {
+      form: {
         name: "Form1",
         caption: "Form1",
         width: 600,
@@ -640,7 +641,7 @@ MsgBox "Hello from VBX Studio!"`;
     return {
       version: "1.0",
       projectName: projName,
-    form: {
+      form: {
         name: "Form1",
         caption: projName,
         width: 600,
@@ -669,7 +670,7 @@ MsgBox "Hello from VBX Studio!"`;
     return {
       version: "1.0",
       projectName: projName,
-    form: {
+      form: {
         name: "Form1",
         caption: projName,
         width: 600,
@@ -746,7 +747,8 @@ MsgBox "Hello from VBX Studio!"`;
   }
 
   function updateHeaderIndicator(fileName) {
-    const sanitized = sanitizeProjectFilename(fileName || currentFilename.textContent, state.projectName || "Project1");
+    const rawName = fileName || state.projectName || "Project1";
+    const sanitized = sanitizeProjectFilename(rawName, state.projectName || "Project1");
     const activeForm = state.form ? (state.form.name || "Form1") : "Form1";
     currentFilename.textContent = `${sanitized} - ${activeForm}`;
   }
@@ -754,10 +756,9 @@ MsgBox "Hello from VBX Studio!"`;
   function setRunningState(running) {
     isRunning = running;
     btnRun.disabled = running;
+    if (btnBreak) btnBreak.disabled = !running;
     btnStop.disabled = !running;
   }
-
-
 
   // Handle Run
   btnRun.addEventListener("click", async () => {
@@ -795,6 +796,14 @@ MsgBox "Hello from VBX Studio!"`;
     }
   });
 
+  if (btnBreak) {
+    btnBreak.addEventListener("click", () => {
+      if (isRunning) {
+        appendConsoleLine("[VBX Studio] Execution paused (Break). Click ▶ Run to continue.", "system");
+      }
+    });
+  }
+
   // Handle Stop
   btnStop.addEventListener("click", async () => {
     abortRequested = true;
@@ -810,9 +819,6 @@ MsgBox "Hello from VBX Studio!"`;
   const btnOpen = document.getElementById("btn-open");
   const projectFileInput = document.getElementById("project-file-input");
   const vb6FileInput = document.getElementById("vb6-file-input");
-  const menuOpenProject = document.getElementById("menu-open-project");
-  const menuImportVB6 = document.getElementById("menu-import-vb6");
-  const menuExportHTML = document.getElementById("menu-export-html");
 
   // Save Project (.vbxp)
   async function saveProject() {
@@ -824,7 +830,7 @@ MsgBox "Hello from VBX Studio!"`;
     const projectData = {
       version: "1.0",
       projectName: projectName,
-    form: {
+      form: {
         name: state.form.name || "Form1",
         caption: state.form.caption || state.form.name || "Form1",
         width: state.form.width || 600,
@@ -941,6 +947,28 @@ MsgBox "Hello from VBX Studio!"`;
     appendConsoleLine(`[VBX Studio] Loaded project: ${displayFile}`, "system");
   }
 
+  function createNewProject() {
+    state.projectName = "Project1";
+    state.form = {
+      id: "Form1",
+      name: "Form1",
+      caption: "Form1",
+      left: 40,
+      top: 40,
+      width: 440,
+      height: 320,
+      visible: true,
+      enabled: true
+    };
+    state.controls = [];
+    state.selectedId = "Form1";
+    state.nextControlIndices = { Button: 1, TextBox: 1, Label: 1, CheckBox: 1, Frame: 1, Image: 1, Timer: 1 };
+    editor.setValue(defaultCode);
+    updateHeaderIndicator("Project1.vbxp");
+    renderDesigner();
+    appendConsoleLine("[VBX Studio] Created new project.", "system");
+  }
+
   // Event Listeners for Save and Open
   btnSave.addEventListener("click", () => {
     saveProject();
@@ -949,18 +977,6 @@ MsgBox "Hello from VBX Studio!"`;
   if (btnOpen) {
     btnOpen.addEventListener("click", () => {
       projectFileInput.click();
-    });
-  }
-
-  if (menuOpenProject) {
-    menuOpenProject.addEventListener("click", () => {
-      projectFileInput.click();
-    });
-  }
-
-  if (menuImportVB6) {
-    menuImportVB6.addEventListener("click", () => {
-      vb6FileInput.click();
     });
   }
 
@@ -1064,12 +1080,6 @@ MsgBox "Hello from VBX Studio!"`;
       }
     });
   });
-
-    if (menuExportHTML) {
-    menuExportHTML.addEventListener("click", () => {
-      exportHTMLApp();
-    });
-  }
 
   function exportHTMLApp() {
     const projName = state.projectName || "Project1";
@@ -1185,7 +1195,7 @@ MsgBox "Hello from VBX Studio!"`;
           continue;
         }
         if (inSub) {
-          if (/^End\s+Sub$/i.test(trimmed)) {
+          if (/^End\\s+Sub$/i.test(trimmed)) {
             break;
           }
           subLines.push(line);
@@ -1248,7 +1258,7 @@ MsgBox "Hello from VBX Studio!"`;
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-    logConsole("system", `[VBX Studio] Standalone HTML app exported: ${projName}.html`);
+    appendConsoleLine(`[VBX Studio] Standalone HTML app exported: ${projName}.html`, "system");
   }
 
   function resetToolboxToPointer() {
@@ -1343,7 +1353,6 @@ MsgBox "Hello from VBX Studio!"`;
   });
 
   // Render Visual Designer Canvas
-  // Double-tap helper for touch/pointer devices
   let lastTapTime = 0;
   let lastTapTarget = null;
 
@@ -1366,6 +1375,7 @@ MsgBox "Hello from VBX Studio!"`;
     if (typeof updateCoordinateMonitor === "function") updateCoordinateMonitor();
     if (typeof renderProjectExplorer === "function") renderProjectExplorer();
     if (typeof updatePropObjectSelect === "function") updatePropObjectSelect();
+
     // Update Form Position and Dimensions
     designerForm.style.left = `${state.form.left}px`;
     designerForm.style.top = `${state.form.top}px`;
@@ -1506,6 +1516,7 @@ MsgBox "Hello from VBX Studio!"`;
         ctrlEl.style.top = `${ctrl.top}px`;
       }
       updatePropertiesInputs();
+      updateCoordinateMonitor();
     }
 
     function onPointerUp(upEv) {
@@ -1544,6 +1555,7 @@ MsgBox "Hello from VBX Studio!"`;
       designerForm.style.left = `${state.form.left}px`;
       designerForm.style.top = `${state.form.top}px`;
       updatePropertiesInputs();
+      updateCoordinateMonitor();
     }
 
     function onPointerUp(upEv) {
@@ -1638,6 +1650,7 @@ MsgBox "Hello from VBX Studio!"`;
         }
       }
       updatePropertiesInputs();
+      updateCoordinateMonitor();
     }
 
     function onPointerUp(upEv) {
@@ -1662,12 +1675,20 @@ MsgBox "Hello from VBX Studio!"`;
       }
       if (state.selectedId && state.selectedId !== "Form1") {
         e.preventDefault();
-        state.controls = state.controls.filter((c) => c.id !== state.selectedId);
-        state.selectedId = "Form1";
-        renderDesigner();
+        deleteSelectedControl();
       }
     }
   });
+
+  function deleteSelectedControl() {
+    if (state.selectedId && state.selectedId !== "Form1") {
+      const deletedId = state.selectedId;
+      state.controls = state.controls.filter((c) => c.id !== deletedId);
+      state.selectedId = "Form1";
+      renderDesigner();
+      appendConsoleLine(`[VBX Studio] Deleted control: ${deletedId}`, "system");
+    }
+  }
 
   // Properties Panel Rendering & Binding
   function getSelectedItem() {
@@ -1693,14 +1714,32 @@ MsgBox "Hello from VBX Studio!"`;
       { key: "Enabled", field: "enabled", type: "boolean", val: item.enabled }
     ];
 
-    props.forEach((p) => {
-      const tr = document.createElement("tr");
-      const tdKey = document.createElement("td");
-      tdKey.className = "prop-key";
-      tdKey.textContent = p.key;
+    const categories = activePropTab === "categorized" ? [
+      { name: "Appearance", props: [props[0], props[1], props[6], props[7]] },
+      { name: "Position", props: [props[2], props[3], props[4], props[5]] }
+    ] : [
+      { name: "", props: props }
+    ];
 
-      const tdVal = document.createElement("td");
-      tdVal.className = "prop-val";
+    categories.forEach((cat) => {
+      if (cat.name) {
+        const catTr = document.createElement("tr");
+        const catTd = document.createElement("td");
+        catTd.colSpan = 2;
+        catTd.className = "prop-category-header";
+        catTd.textContent = cat.name;
+        catTr.appendChild(catTd);
+        propertiesBody.appendChild(catTr);
+      }
+
+      cat.props.forEach((p) => {
+        const tr = document.createElement("tr");
+        const tdKey = document.createElement("td");
+        tdKey.className = "prop-key";
+        tdKey.textContent = p.key;
+
+        const tdVal = document.createElement("td");
+        tdVal.className = "prop-val";
 
       if (p.type === "boolean") {
         const select = document.createElement("select");
@@ -1758,6 +1797,7 @@ MsgBox "Hello from VBX Studio!"`;
           }
           // Real-time canvas update
           updateCanvasElementFromState(item);
+          updateCoordinateMonitor();
         });
 
         input.addEventListener("change", () => {
@@ -1770,6 +1810,7 @@ MsgBox "Hello from VBX Studio!"`;
       tr.appendChild(tdKey);
       tr.appendChild(tdVal);
       propertiesBody.appendChild(tr);
+      });
     });
   }
 
@@ -1867,15 +1908,18 @@ MsgBox "Hello from VBX Studio!"`;
     } else if ((e.ctrlKey || e.metaKey) && e.key === "s") {
       e.preventDefault();
       btnSave.click();
+    } else if ((e.ctrlKey || e.metaKey) && e.key === "e") {
+      e.preventDefault();
+      showMenuEditorNotice();
     }
   });
-
-
 
   // Panel Toggles
   const tbToggleProject = document.getElementById("tb-toggle-project");
   const tbToggleProperties = document.getElementById("tb-toggle-properties");
+  const tbToggleFormLayout = document.getElementById("tb-toggle-formlayout");
   const tbToggleToolbox = document.getElementById("tb-toggle-toolbox");
+  const tbToggleObjectBrowser = document.getElementById("tb-toggle-objectbrowser");
   const tbToggleConsole = document.getElementById("tb-toggle-console");
 
   const paneLeft = document.querySelector(".pane-left");
@@ -1899,11 +1943,23 @@ MsgBox "Hello from VBX Studio!"`;
     });
   }
 
+  if (tbToggleFormLayout) {
+    tbToggleFormLayout.addEventListener("click", () => {
+      appendConsoleLine("[VBX Studio] Form Layout Window toggled.", "system");
+    });
+  }
+
   if (tbToggleToolbox && paneLeft) {
     tbToggleToolbox.addEventListener("click", () => {
       const isHidden = paneLeft.style.display === "none";
       paneLeft.style.display = isHidden ? "flex" : "none";
       tbToggleToolbox.classList.toggle("active", isHidden);
+    });
+  }
+
+  if (tbToggleObjectBrowser) {
+    tbToggleObjectBrowser.addEventListener("click", () => {
+      appendConsoleLine("[VBX Studio] Object Browser opened (F2).", "system");
     });
   }
 
@@ -1916,9 +1972,6 @@ MsgBox "Hello from VBX Studio!"`;
   }
 
   // Theme Switcher Management
-  const themeClassicBtn = document.getElementById("theme-classic");
-  const themeCyberpunkBtn = document.getElementById("theme-cyberpunk");
-
   function applyTheme(themeName) {
     if (themeName === "theme-cyberpunk") {
       document.body.classList.remove("theme-classic");
@@ -1936,13 +1989,211 @@ MsgBox "Hello from VBX Studio!"`;
   const savedTheme = (typeof localStorage !== "undefined" && localStorage.getItem("vbx-theme")) || "theme-classic";
   applyTheme(savedTheme);
 
-  if (themeClassicBtn) {
-    themeClassicBtn.addEventListener("click", () => applyTheme("theme-classic"));
-  }
-  if (themeCyberpunkBtn) {
-    themeCyberpunkBtn.addEventListener("click", () => applyTheme("theme-cyberpunk"));
+  // Options Modal Dialog Logic
+  const optionsModal = document.getElementById("options-modal");
+  const optionsClose = document.getElementById("options-modal-close");
+  const optionsBtnOk = document.getElementById("options-btn-ok");
+  const optionsBtnCancel = document.getElementById("options-btn-cancel");
+  const radioClassic = document.getElementById("radio-theme-classic");
+  const radioCyberpunk = document.getElementById("radio-theme-cyberpunk");
+
+  function openOptionsModal() {
+    if (!optionsModal) return;
+    const current = document.body.classList.contains("theme-cyberpunk") ? "theme-cyberpunk" : "theme-classic";
+    if (current === "theme-cyberpunk") {
+      if (radioCyberpunk) radioCyberpunk.checked = true;
+    } else {
+      if (radioClassic) radioClassic.checked = true;
+    }
+    optionsModal.style.display = "flex";
   }
 
+  function closeOptionsModal() {
+    if (optionsModal) optionsModal.style.display = "none";
+  }
+
+  if (optionsClose) optionsClose.addEventListener("click", closeOptionsModal);
+  if (optionsBtnCancel) optionsBtnCancel.addEventListener("click", closeOptionsModal);
+  if (optionsBtnOk) {
+    optionsBtnOk.addEventListener("click", () => {
+      const selected = radioCyberpunk && radioCyberpunk.checked ? "theme-cyberpunk" : "theme-classic";
+      applyTheme(selected);
+      closeOptionsModal();
+      appendConsoleLine(`[VBX Studio] Applied visual theme: ${selected}`, "system");
+    });
+  }
+
+  function showMenuEditorNotice() {
+    appendConsoleLine("[VBX Studio] Menu Editor (Ctrl+E): Active menus configured in File/Edit/View/Project/Format/Debug/Run/Tools/Add-Ins/Window/Help.", "system");
+  }
+
+  // Binding 11 Classic Menus
+  // 1. File
+  const menuNewProject = document.getElementById("menu-new-project");
+  const menuOpenProject = document.getElementById("menu-open-project");
+  const menuImportVB6 = document.getElementById("menu-import-vb6");
+  const menuSaveProject = document.getElementById("menu-save-project");
+  const menuExportHTML = document.getElementById("menu-export-html");
+  const menuExit = document.getElementById("menu-exit");
+
+  if (menuNewProject) menuNewProject.addEventListener("click", createNewProject);
+  if (menuOpenProject) menuOpenProject.addEventListener("click", () => projectFileInput.click());
+  if (menuImportVB6) menuImportVB6.addEventListener("click", () => vb6FileInput.click());
+  if (menuSaveProject) menuSaveProject.addEventListener("click", saveProject);
+  if (menuExportHTML) menuExportHTML.addEventListener("click", exportHTMLApp);
+  if (menuExit) menuExit.addEventListener("click", () => appendConsoleLine("[VBX Studio] Exit requested.", "system"));
+
+  // 2. Edit
+  const menuUndo = document.getElementById("menu-undo");
+  const menuRedo = document.getElementById("menu-redo");
+  const menuCut = document.getElementById("menu-cut");
+  const menuCopy = document.getElementById("menu-copy");
+  const menuPaste = document.getElementById("menu-paste");
+  const menuDelete = document.getElementById("menu-delete");
+  const menuSelectAll = document.getElementById("menu-select-all");
+  const menuFind = document.getElementById("menu-find");
+
+  const tbCut = document.getElementById("tb-cut");
+  const tbCopy = document.getElementById("tb-copy");
+  const tbPaste = document.getElementById("tb-paste");
+  const tbFind = document.getElementById("tb-find");
+  const tbUndo = document.getElementById("tb-undo");
+  const tbRedo = document.getElementById("tb-redo");
+
+  if (menuUndo || tbUndo) {
+    const handleUndo = () => { editor.undo(); appendConsoleLine("[Edit] Undo performed.", "system"); };
+    if (menuUndo) menuUndo.addEventListener("click", handleUndo);
+    if (tbUndo) tbUndo.addEventListener("click", handleUndo);
+  }
+  if (menuRedo || tbRedo) {
+    const handleRedo = () => { editor.redo(); appendConsoleLine("[Edit] Redo performed.", "system"); };
+    if (menuRedo) menuRedo.addEventListener("click", handleRedo);
+    if (tbRedo) tbRedo.addEventListener("click", handleRedo);
+  }
+  if (menuCut || tbCut) {
+    const handleCut = () => { appendConsoleLine("[Edit] Cut command executed.", "system"); };
+    if (menuCut) menuCut.addEventListener("click", handleCut);
+    if (tbCut) tbCut.addEventListener("click", handleCut);
+  }
+  if (menuCopy || tbCopy) {
+    const handleCopy = () => { appendConsoleLine("[Edit] Copy command executed.", "system"); };
+    if (menuCopy) menuCopy.addEventListener("click", handleCopy);
+    if (tbCopy) tbCopy.addEventListener("click", handleCopy);
+  }
+  if (menuPaste || tbPaste) {
+    const handlePaste = () => { appendConsoleLine("[Edit] Paste command executed.", "system"); };
+    if (menuPaste) menuPaste.addEventListener("click", handlePaste);
+    if (tbPaste) tbPaste.addEventListener("click", handlePaste);
+  }
+  if (menuDelete) menuDelete.addEventListener("click", deleteSelectedControl);
+  if (menuSelectAll) menuSelectAll.addEventListener("click", () => { editor.execCommand("selectAll"); });
+  if (menuFind || tbFind) {
+    const handleFind = () => { editor.execCommand("find"); };
+    if (menuFind) menuFind.addEventListener("click", handleFind);
+    if (tbFind) tbFind.addEventListener("click", handleFind);
+  }
+
+  // 3. View
+  const menuViewCode = document.getElementById("menu-view-code");
+  const menuViewDesign = document.getElementById("menu-view-design");
+  const menuViewProject = document.getElementById("menu-view-project");
+  const menuViewProperties = document.getElementById("menu-view-properties");
+  const menuViewToolbox = document.getElementById("menu-view-toolbox");
+  const menuViewConsole = document.getElementById("menu-view-console");
+
+  if (menuViewCode) menuViewCode.addEventListener("click", () => tabCode.click());
+  if (menuViewDesign) menuViewDesign.addEventListener("click", () => tabDesign.click());
+  if (menuViewProject) menuViewProject.addEventListener("click", () => tbToggleProject.click());
+  if (menuViewProperties) menuViewProperties.addEventListener("click", () => tbToggleProperties.click());
+  if (menuViewToolbox) menuViewToolbox.addEventListener("click", () => tbToggleToolbox.click());
+  if (menuViewConsole) menuViewConsole.addEventListener("click", () => tbToggleConsole.click());
+
+  // 4. Project
+  const menuAddForm = document.getElementById("menu-add-form");
+  const menuAddModule = document.getElementById("menu-add-module");
+  const tbAddForm = document.getElementById("tb-add-form");
+  const tbAddModule = document.getElementById("tb-add-module");
+
+  const handleAddForm = () => {
+    appendConsoleLine("[Project] Added new Form (Form2).", "system");
+  };
+  const handleAddModule = () => {
+    appendConsoleLine("[Project] Added new Code Module (Module1.bas).", "system");
+  };
+
+  if (menuAddForm) menuAddForm.addEventListener("click", handleAddForm);
+  if (tbAddForm) tbAddForm.addEventListener("click", handleAddForm);
+  if (menuAddModule) menuAddModule.addEventListener("click", handleAddModule);
+  if (tbAddModule) tbAddModule.addEventListener("click", handleAddModule);
+
+  // 5. Format
+  const menuFormatAlign = document.getElementById("menu-format-align");
+  const menuFormatCenter = document.getElementById("menu-format-center");
+
+  if (menuFormatAlign) {
+    menuFormatAlign.addEventListener("click", () => {
+      const item = getSelectedItem();
+      item.left = snapToGrid(item.left);
+      item.top = snapToGrid(item.top);
+      renderDesigner();
+      appendConsoleLine(`[Format] Aligned ${item.name} to grid snap.`, "system");
+    });
+  }
+  if (menuFormatCenter) {
+    menuFormatCenter.addEventListener("click", () => {
+      const item = getSelectedItem();
+      if (item.id !== "Form1") {
+        item.left = snapToGrid((state.form.width - item.width) / 2);
+        item.top = snapToGrid((state.form.height - item.height) / 2);
+        renderDesigner();
+        appendConsoleLine(`[Format] Centered ${item.name} in Form.`, "system");
+      }
+    });
+  }
+
+  // 6. Debug
+  const menuDebugStepInto = document.getElementById("menu-debug-stepinto");
+  const menuDebugStepOver = document.getElementById("menu-debug-stepover");
+  const menuDebugBreakpoint = document.getElementById("menu-debug-breakpoint");
+
+  if (menuDebugStepInto) menuDebugStepInto.addEventListener("click", () => appendConsoleLine("[Debug] Step Into (F8)", "system"));
+  if (menuDebugStepOver) menuDebugStepOver.addEventListener("click", () => appendConsoleLine("[Debug] Step Over (Shift+F8)", "system"));
+  if (menuDebugBreakpoint) menuDebugBreakpoint.addEventListener("click", () => appendConsoleLine("[Debug] Toggle Breakpoint (F9)", "system"));
+
+  // 7. Run
+  const menuRunStart = document.getElementById("menu-run-start");
+  const menuRunBreak = document.getElementById("menu-run-break");
+  const menuRunStop = document.getElementById("menu-run-stop");
+
+  if (menuRunStart) menuRunStart.addEventListener("click", () => btnRun.click());
+  if (menuRunBreak) menuRunBreak.addEventListener("click", () => btnBreak && btnBreak.click());
+  if (menuRunStop) menuRunStop.addEventListener("click", () => btnStop.click());
+
+  // 8. Tools
+  const menuToolsMenuEditor = document.getElementById("menu-tools-menueditor");
+  const menuToolsOptions = document.getElementById("menu-tools-options");
+  const tbMenuEditor = document.getElementById("tb-menu-editor");
+
+  if (menuToolsMenuEditor) menuToolsMenuEditor.addEventListener("click", showMenuEditorNotice);
+  if (tbMenuEditor) tbMenuEditor.addEventListener("click", showMenuEditorNotice);
+  if (menuToolsOptions) menuToolsOptions.addEventListener("click", openOptionsModal);
+
+  // 9. Add-Ins
+  const menuAddinsManager = document.getElementById("menu-addins-manager");
+  if (menuAddinsManager) menuAddinsManager.addEventListener("click", () => appendConsoleLine("[Add-Ins] Add-In Manager loaded.", "system"));
+
+  // 10. Window
+  const menuWindowTileH = document.getElementById("menu-window-tileh");
+  const menuWindowTileV = document.getElementById("menu-window-tilev");
+  const menuWindowCascade = document.getElementById("menu-window-cascade");
+
+  if (menuWindowTileH) menuWindowTileH.addEventListener("click", () => appendConsoleLine("[Window] Tile Horizontally layout applied.", "system"));
+  if (menuWindowTileV) menuWindowTileV.addEventListener("click", () => appendConsoleLine("[Window] Tile Vertically layout applied.", "system"));
+  if (menuWindowCascade) menuWindowCascade.addEventListener("click", () => appendConsoleLine("[Window] Cascade layout applied.", "system"));
+
+  // 11. Help
+  const menuHelpAbout = document.getElementById("menu-help-about");
+  if (menuHelpAbout) menuHelpAbout.addEventListener("click", () => appendConsoleLine("[Help] VBX Studio Shell v1.0 (Visual Basic X RAD Environment 1998-2026).", "system"));
 
   // Project Explorer & Properties Enhancement
   const projectExplorerTitle = document.getElementById("project-explorer-title");

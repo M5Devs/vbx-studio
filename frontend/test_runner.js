@@ -243,3 +243,40 @@ console.log("✓ Filename sanitization tests passed");
 testInterpreter().then(() => {
   console.log("All Frontend Automated Tests Passed Successfully!");
 });
+
+// Test 6: HTML Structure Assertions (11 Menus, Offline CodeMirror, Coordinate Monitors)
+const htmlContent = fs.readFileSync(path.join(__dirname, "index.html"), "utf8");
+
+// Assertion 6a: Offline local CodeMirror assets loading
+assert.ok(htmlContent.includes('href="vendor/codemirror/codemirror.min.css"'));
+assert.ok(htmlContent.includes('src="vendor/codemirror/codemirror.min.js"'));
+assert.ok(!htmlContent.includes("cdnjs.cloudflare.com"), "index.html should not load scripts from cdnjs.cloudflare.com");
+console.log("✓ Offline local CodeMirror assets assertion passed");
+
+// Assertion 6b: 11 Visual Basic 6 Menus
+const requiredMenus = [
+  'id="menu-file">File',
+  'id="menu-edit">Edit',
+  'id="menu-view">View',
+  'id="menu-project">Project',
+  'id="menu-format">Format',
+  'id="menu-debug">Debug',
+  'id="menu-run">Run',
+  'id="menu-tools">Tools',
+  'id="menu-addins">Add-Ins',
+  'id="menu-window">Window',
+  'id="menu-help">Help'
+];
+requiredMenus.forEach((m) => {
+  assert.ok(htmlContent.includes(m), `index.html should contain menu item ${m}`);
+});
+console.log("✓ All 11 Visual Basic 6 menus assertion passed");
+
+// Assertion 6c: Toolbar buttons and coordinate monitors
+assert.ok(htmlContent.includes('id="coord-pos"'));
+assert.ok(htmlContent.includes('id="coord-size"'));
+assert.ok(htmlContent.includes('class="rebar-grip"'));
+
+const tbButtonMatches = htmlContent.match(/id="(tb-[^"]+|btn-[^"]+)"/g) || [];
+assert.ok(tbButtonMatches.length >= 20, `Expected at least 20 toolbar button IDs, found ${tbButtonMatches.length}`);
+console.log(`✓ Toolbar (20+ buttons, found ${tbButtonMatches.length}) and Coordinate Monitors assertion passed`);
