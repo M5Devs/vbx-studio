@@ -19,24 +19,125 @@
           <span class="logo-studio">STUDIO</span>
         </div>
         <nav class="menu-bar">
+          <!-- 1. File Menu -->
           <div class="menu-dropdown">
             <div class="menu-item" id="menu-file">File</div>
             <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-new-project">New Project</div>
               <div class="dropdown-item" id="menu-open-project">Open Project (.vbxp)</div>
               <div class="dropdown-item" id="menu-import-vb6">Import VB6 (.frm, .vbp)</div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item" id="menu-save-project">Save Project</div>
               <div class="dropdown-item" id="menu-export-html">Make .html...</div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item" id="menu-exit">Exit</div>
             </div>
           </div>
-          <div class="menu-item" id="menu-edit">Edit</div>
-          <div class="menu-item" id="menu-project">Project</div>
+
+          <!-- 2. Edit Menu -->
           <div class="menu-dropdown">
-            <div class="menu-item" id="menu-theme">Theme</div>
+            <div class="menu-item" id="menu-edit">Edit</div>
             <div class="dropdown-content">
-              <div class="dropdown-item" id="theme-classic">Classic VB6 (1998)</div>
-              <div class="dropdown-item" id="theme-cyberpunk">Cyberpunk (2026)</div>
+              <div class="dropdown-item" id="menu-undo">Undo</div>
+              <div class="dropdown-item" id="menu-redo">Redo</div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item" id="menu-cut">Cut</div>
+              <div class="dropdown-item" id="menu-copy">Copy</div>
+              <div class="dropdown-item" id="menu-paste">Paste</div>
+              <div class="dropdown-item" id="menu-delete">Delete</div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item" id="menu-select-all">Select All</div>
+              <div class="dropdown-item" id="menu-find">Find...</div>
             </div>
           </div>
-          <div class="menu-item" id="menu-help">Help</div>
+
+          <!-- 3. View Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-view">View</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-view-code">Code View</div>
+              <div class="dropdown-item" id="menu-view-design">Design View</div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item" id="menu-view-project">Project Explorer</div>
+              <div class="dropdown-item" id="menu-view-properties">Properties Window</div>
+              <div class="dropdown-item" id="menu-view-toolbox">Toolbox</div>
+              <div class="dropdown-item" id="menu-view-console">Output Console</div>
+            </div>
+          </div>
+
+          <!-- 4. Project Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-project">Project</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-add-form">Add Form</div>
+              <div class="dropdown-item" id="menu-add-module">Add Module</div>
+            </div>
+          </div>
+
+          <!-- 5. Format Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-format">Format</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-format-align">Align</div>
+              <div class="dropdown-item" id="menu-format-center">Center in Form</div>
+            </div>
+          </div>
+
+          <!-- 6. Debug Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-debug">Debug</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-debug-stepinto">Step Into (F8)</div>
+              <div class="dropdown-item" id="menu-debug-stepover">Step Over (Shift+F8)</div>
+              <div class="dropdown-item" id="menu-debug-breakpoint">Toggle Breakpoint (F9)</div>
+            </div>
+          </div>
+
+          <!-- 7. Run Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-run">Run</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-run-start">▶ Start / Run (F5)</div>
+              <div class="dropdown-item" id="menu-run-break">⏸ Break</div>
+              <div class="dropdown-item" id="menu-run-stop">⏹ End / Stop</div>
+            </div>
+          </div>
+
+          <!-- 8. Tools Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-tools">Tools</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-tools-menueditor">Menu Editor (Ctrl+E)</div>
+              <div class="dropdown-separator"></div>
+              <div class="dropdown-item" id="menu-tools-options">Options...</div>
+            </div>
+          </div>
+
+          <!-- 9. Add-Ins Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-addins">Add-Ins</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-addins-manager">Add-In Manager...</div>
+            </div>
+          </div>
+
+          <!-- 10. Window Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-window">Window</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-window-tileh">Tile Horizontally</div>
+              <div class="dropdown-item" id="menu-window-tilev">Tile Vertically</div>
+              <div class="dropdown-item" id="menu-window-cascade">Cascade</div>
+            </div>
+          </div>
+
+          <!-- 11. Help Menu -->
+          <div class="menu-dropdown">
+            <div class="menu-item" id="menu-help">Help</div>
+            <div class="dropdown-content">
+              <div class="dropdown-item" id="menu-help-about">About VBX Studio</div>
+            </div>
+          </div>
         </nav>
       </div>
 
@@ -367,6 +468,29 @@
         <div class="console-line line-system">[VBX Studio] Engine Ready. Click "▶ Run" or press F5 to execute code.</div>
       </div>
     </footer>
+  </div>
+
+  <!-- Options Modal Dialog -->
+  <div id="options-modal" class="modal-overlay" style="display:none;">
+    <div class="modal-dialog bevel-raised">
+      <div class="modal-header">
+        <span>Options</span>
+        <span class="modal-close" id="options-modal-close">×</span>
+      </div>
+      <div class="modal-body">
+        <div class="options-group">
+          <label class="options-label">Visual Theme:</label>
+          <div class="options-radio-group">
+            <label><input type="radio" name="opt-theme" value="theme-classic" id="radio-theme-classic"> Windows Classic (1998)</label>
+            <label><input type="radio" name="opt-theme" value="theme-cyberpunk" id="radio-theme-cyberpunk"> Cyberpunk (2026)</label>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn" id="options-btn-ok">OK</button>
+        <button class="btn" id="options-btn-cancel">Cancel</button>
+      </div>
+    </div>
   </div>
 
   <!-- CodeMirror JavaScript -->

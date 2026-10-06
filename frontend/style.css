@@ -1358,3 +1358,81 @@ body.theme-cyberpunk .coord-box {
   font-size: 10px;
   opacity: 0.8;
 }
+
+/* Menu Dropdown Separator */
+.dropdown-separator {
+  height: 1px;
+  background-color: #808080;
+  border-bottom: 1px solid #ffffff;
+  margin: 3px 2px;
+}
+
+body.theme-cyberpunk .dropdown-separator {
+  background-color: var(--border-flat);
+  border-bottom: none;
+}
+
+/* Modal Dialog Styling */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+}
+
+.modal-dialog {
+  background-color: var(--bg-chrome);
+  min-width: 320px;
+  padding: 2px;
+}
+
+.modal-header {
+  background: linear-gradient(90deg, var(--titlebar-active-start), var(--titlebar-active-end));
+  color: var(--titlebar-text);
+  padding: 3px 6px;
+  font-weight: bold;
+  font-size: 11px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-close {
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.modal-body {
+  padding: 12px;
+}
+
+.options-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.options-label {
+  font-weight: bold;
+}
+
+.options-radio-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 8px;
+}
+
+.modal-footer {
+  padding: 8px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  border-top: 1px solid #808080;
+}
